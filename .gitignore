@@ -1,4 +1,3 @@
-!docs/**/*.png
 .DS_Store
 .env
 .env.*
@@ -18,3 +17,8 @@ spikes/node_modules/
 spikes/out/
 token.json
 spikes/package-lock.json
+
+# Renders are throwaway, except the ones the docs actually show. Git applies the
+# last matching pattern, so this negation has to come after `*.png` above; when
+# it sat on line 1 it lost, and docs/images/golden-roster.png was ignored.
+!docs/**/*.png
