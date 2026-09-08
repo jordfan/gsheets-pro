@@ -76,6 +76,8 @@ import type { ToolDefinition, ToolDeps } from "./types.js";
 
 /** How far down a tab the append and upsert paths look for the data's end. */
 const SCAN_ROWS = 5000;
+/** Enough to find a header row when the mode needs nothing more. */
+const HEADER_SCAN_ROWS = 25;
 /** Cells named individually in a refusal before the rest are counted. */
 const NAME_LIMIT = 8;
 
@@ -441,7 +443,14 @@ async function readSurface(
   // One values read, rendered as formulas. Headers are text and read the same
   // either way, so this one call feeds the header inference and the formula
   // guard both.
-  const scan = `${reference}!A1:${columnIndexToLetter(51)}${SCAN_ROWS}`;
+  //
+  // How far down depends on what the mode needs to know. A range or a fill
+  // write needs only the header row; an append or an upsert has to know where
+  // the data ends and whether a second block sits below it, which means
+  // reading the tab. On a long roster that is the difference between a few
+  // rows and several thousand.
+  const scanRows = mode === "append" || mode === "log" || mode === "upsert" ? SCAN_ROWS : HEADER_SCAN_ROWS;
+  const scan = `${reference}!A1:${columnIndexToLetter(51)}${scanRows}`;
   const response = await withRetry(() =>
     ctx.sheets.spreadsheets.values.batchGet({
       spreadsheetId,

@@ -566,6 +566,24 @@ describe("dry_run and check", () => {
   });
 });
 
+describe("how far down the tab a write reads", () => {
+  const rowsOf = (range: string) => Number(/(\d+)$/.exec(range)?.[1] ?? 0);
+
+  test("a range write reads only far enough to find the header", async () => {
+    const { run, calls } = tool();
+    await run({ ...base, range: "B2", values: [["4"]] });
+    const scan = (calls.batchGet[0] as { ranges: string[] }).ranges[0];
+    expect(rowsOf(scan)).toBeLessThanOrEqual(25);
+  });
+
+  test("an append reads the tab, because it has to know where the data ends", async () => {
+    const { run, calls } = tool();
+    await run({ ...base, mode: "append", values: [["Cy Okafor"]] });
+    const scan = (calls.batchGet[0] as { ranges: string[] }).ranges[0];
+    expect(rowsOf(scan)).toBeGreaterThan(1000);
+  });
+});
+
 describe("a pasted URL", () => {
   test("is accepted where the id belongs", async () => {
     const { run } = tool();
