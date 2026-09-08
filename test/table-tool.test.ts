@@ -121,7 +121,7 @@ describe("sheets_table create", () => {
     expect(protection.protectedRange["range"]).toMatchObject({ startRowIndex: 0, endRowIndex: 1 });
   });
 
-  test("writes a header note and the preset's number formats", async () => {
+  test("writes a header note", async () => {
     const { table, requests } = tool();
     await table.handler({
       spreadsheet_id: FAKE_ID,
@@ -131,14 +131,28 @@ describe("sheets_table create", () => {
       range: "A1:E3",
       columns: COLUMNS,
     });
-    const all = requests();
     const notes = requestsOfKind<{ rows: Array<{ values: Array<Record<string, string>> }> }>(
-      all,
+      requests(),
       "updateCells",
     );
     expect(notes[0].rows[0].values[4]["note"]).toMatch(/Vendor rate times sessions/);
-    const formats = requestsOfKind<{ cell: Record<string, never> }>(all, "repeatCell");
-    expect(formats).toHaveLength(2); // DOUBLE and CURRENCY
+  });
+
+  test("sends no number format for a typed column, and says why", async () => {
+    // A Table column type overrides any pattern written into its cells: the
+    // pattern comes back stripped. Verified live on 2026-09-07.
+    const { table, requests, calls } = tool();
+    const result = await table.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Instructors",
+      action: "create",
+      name: "Instructors",
+      range: "A1:E3",
+      columns: COLUMNS,
+    });
+    expect(requestsOfKind(requests(), "repeatCell")).toHaveLength(0);
+    expect(result.content[0].text).toMatch(/overrides the neutral preset's number patterns/);
+    expect(calls.batchUpdate).toHaveLength(2);
   });
 
   test("writes column, sheet and manifest metadata at PROJECT visibility", async () => {

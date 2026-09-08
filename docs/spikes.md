@@ -401,6 +401,19 @@ asserting both return a result.
 - **`TableColumnDataValidationRule` carries only `condition`.** Unlike
   `DataValidationRule` it has no `showCustomUi`, `strict`, or `inputMessage`, so
   a Table column cannot carry help text the way a plain range rule can.
+- **A Table column type strips the number format pattern from its cells.**
+  Writing `{type: CURRENCY, pattern: "\"$\"#,##0;(\"$\"#,##0);\"-\""}` into a
+  CURRENCY column of a Table reads back as `{type: CURRENCY}` with the pattern
+  gone, and the cell renders in the locale default (`$1,234.50`). The identical
+  `repeatCell` on a cell one column outside the Table keeps its pattern and
+  renders `$1,235`. So a preset's number patterns cannot reach a typed Table
+  column, and `sheets_table` does not send them: it says the column type governs
+  the display instead. Patterns still apply everywhere outside a Table.
+- **`TableRowsProperties` accepts and returns `ColorStyle.themeColor`.** A Table
+  created with `headerColorStyle: {themeColor: "ACCENT1"}` reads back as that
+  slot, and the header cell's `effectiveFormat.backgroundColorStyle` is the slot
+  too, so a Table painted from a preset follows Format > Theme rather than
+  freezing hex into the sheet.
 - The discovery doc used throughout is revision **20260831**, matching the plan.
 
 ## Files

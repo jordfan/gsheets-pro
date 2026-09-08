@@ -9,16 +9,16 @@ import { defineConfig } from "vitest/config";
  *   GSHEETS_PRO_LIVE_SPREADSHEET=<a disposable spreadsheet id> \
  *   GSHEETS_PRO_TOKEN_FILE=$PWD/spikes/.secrets/sheets-mcp-token.json \
  *   GSHEETS_PRO_OAUTH_CLIENT=$PWD/spikes/.secrets/sheets-mcp-oauth-keys.json \
- *   npx vitest run --config vitest.live.config.ts
+ *   npm run test:live
  *
  * Without GSHEETS_PRO_LIVE_SPREADSHEET every test skips itself, so the file is
- * safe to run in CI with no credentials.
+ * safe to run in CI with no credentials. Cases run one after another because
+ * they share tabs and because the API allows 60 reads a minute.
  */
 export default defineConfig({
   test: {
     include: ["test/live/**/*.test.ts"],
     environment: "node",
-    // Real API calls, run in order, with quota backoff behind them.
     testTimeout: 120_000,
     hookTimeout: 120_000,
     fileParallelism: false,

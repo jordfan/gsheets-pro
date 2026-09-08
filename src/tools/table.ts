@@ -58,7 +58,6 @@ import {
   buildColumnProperties,
   columnLetterOf,
   columnMetadataWrite,
-  columnRangeOf,
   describeTableRange,
   headerRangeOf,
   metadataRequest,
@@ -135,10 +134,6 @@ export const tableInputSchema = {
     .boolean()
     .optional()
     .describe("Put a warning only protection on the header row, so renaming a column asks first. Default true."),
-  number_formats: z
-    .boolean()
-    .optional()
-    .describe("Apply the preset's number formats to the typed columns. Default true."),
   status_fill_rules: z
     .boolean()
     .optional()
@@ -172,7 +167,6 @@ type TableArgs = {
   freeze_header?: boolean;
   filter?: boolean;
   protect_header?: boolean;
-  number_formats?: boolean;
   status_fill_rules?: boolean;
   status_column?: string;
   status_colors?: Record<string, string>;
@@ -327,7 +321,8 @@ async function createTable(
   const notes: string[] = [];
 
   follow.push(...headerNoteRequests(columns, range, state.sheetId));
-  follow.push(...numberFormatRequests(args, columns, range, preset, state.sheetId));
+  const formatNote = numberFormatNote(columns, preset);
+  if (formatNote) notes.push(formatNote);
 
   if (args.freeze_header !== false) {
     if (range.startRowIndex === 0) {
@@ -629,7 +624,6 @@ async function updateTable(
   const requests: unknown[] = [{ updateTable: { table, fields: fields.join(",") } }];
   if (columns.length) {
     requests.push(...headerNoteRequests(columns, newRange, state.sheetId));
-    requests.push(...numberFormatRequests(args, columns, newRange, preset, state.sheetId));
 
     const record: PluginSheetRecord = {
       ...((sheetRecord(snapshot, state.sheetId) ?? {}) as PluginSheetRecord),
@@ -906,28 +900,24 @@ function headerNoteRequests(
   ];
 }
 
-/** The preset's number formats on the typed columns, so numbers read right. */
-function numberFormatRequests(
-  args: TableArgs,
-  columns: ColumnSpec[],
-  range: Required<GridRange>,
-  preset: Preset,
-  sheetId: number,
-): unknown[] {
-  if (args.number_formats === false) return [];
-  const requests: unknown[] = [];
-  columns.forEach((column, index) => {
-    const numberFormat = numberFormatForColumnType(preset, column.type);
-    if (!numberFormat) return;
-    requests.push({
-      repeatCell: {
-        range: { ...columnRangeOf(range, index), sheetId },
-        cell: { userEnteredFormat: { numberFormat } },
-        fields: "userEnteredFormat.numberFormat",
-      },
-    });
-  });
-  return requests;
+/**
+ * What a typed column will and will not let the preset decide.
+ *
+ * A Table column's type governs how its cells display, and it wins. Writing
+ * `{ type: CURRENCY, pattern: "\"$\"#,##0" }` into a CURRENCY column comes back
+ * as `{ type: CURRENCY }` with the pattern stripped, so the cell renders in the
+ * locale default ($1,234.50) rather than in the preset's pattern ($1,235). The
+ * identical write to a cell outside the Table keeps its pattern. Verified live
+ * on 2026-09-07.
+ *
+ * So the tool does not send number formats for typed columns at all: they would
+ * be discarded, and reporting them as applied would be a lie. This returns the
+ * note that says so instead.
+ */
+function numberFormatNote(columns: ColumnSpec[], preset: Preset): string | undefined {
+  const typed = columns.filter((c) => numberFormatForColumnType(preset, c.type));
+  if (!typed.length) return undefined;
+  return `${listOf(typed.map((c) => `${c.name} (${c.type?.toLowerCase()})`))} display in the format their Table column type dictates, which overrides the ${preset.name} preset's number patterns. That is the Table's doing, not a setting: a pattern written into a typed column is discarded.`;
 }
 
 interface ContractInput {
