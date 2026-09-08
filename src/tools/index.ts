@@ -6,14 +6,17 @@
  *
  * The order is the order a session works in: open and read first, then the
  * tools that build a sheet, then the ones that rearrange it, then the escape
- * hatch. Tool lists are read top down by the model as well as by people.
+ * hatch, then the two that check the result. Tool lists are read top down by
+ * the model as well as by people.
  */
 
 import { createBatchTool } from "./batch.js";
+import { createCheckTool } from "./check.js";
 import { createConditionalFormatTool } from "./conditional_format.js";
 import { createFindTool } from "./find.js";
 import { createOpenTool } from "./open.js";
 import { createReadTool } from "./read.js";
+import { createRenderTool } from "./render.js";
 import { createSettingsTool } from "./settings.js";
 import { createStructureTool } from "./structure.js";
 import { createStyleTool } from "./style.js";
@@ -36,6 +39,8 @@ const FACTORIES = [
   createStructureTool,
   createFindTool,
   createBatchTool,
+  createCheckTool,
+  createRenderTool,
 ] as const;
 
 /** Build every tool against one set of dependencies. */
@@ -45,10 +50,12 @@ export function createTools(deps: ToolDeps): Array<ToolDefinition<never>> {
 
 export {
   createBatchTool,
+  createCheckTool,
   createConditionalFormatTool,
   createFindTool,
   createOpenTool,
   createReadTool,
+  createRenderTool,
   createSettingsTool,
   createStructureTool,
   createStyleTool,
