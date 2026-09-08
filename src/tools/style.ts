@@ -267,6 +267,11 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
       const touchedRanges: string[] = [];
       const did: string[] = [];
 
+      // Read once and reuse. Developer metadata has no upsert, so writing the
+      // manifest without knowing what is already there piles up a duplicate
+      // entry on every theme call.
+      const existingMetadata = wantsTheme ? await readMetadata(ctx, spreadsheetId) : [];
+
       if (wantsTheme) {
         if (!compiled) throw err.internal("A theme write reached the builder with no compiled preset.");
         requests.push({
@@ -283,7 +288,7 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
             `The preset named no color for ${listOf(compiled.inheritedSlots)}, so the spreadsheet's existing ${compiled.inheritedSlots.length === 1 ? "value was" : "values were"} kept.`,
           );
         }
-        requests.push(...(await manifestRequests(ctx, spreadsheetId, compiled, surface)));
+        requests.push(manifestRequest(compiled, existingMetadata));
         did.push("recorded the preset in the spreadsheet's own metadata");
       }
 
@@ -417,8 +422,12 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
           did.push(...sheetProperties.described);
         }
 
-        if (wantsTheme || (compiled && args.preset)) {
-          requests.push(...sheetMetadataRequests(compiled!, sheetId, surface));
+        // Only the theme path records what a tab is. A call that paints one
+        // range with the park header color is not a statement that this tab is
+        // a park tracker, and recording it as one would make the contract a
+        // guess rather than a record.
+        if (wantsTheme && compiled) {
+          requests.push(sheetMetadataRequest(compiled, sheetId, existingMetadata));
         }
       }
 
@@ -991,63 +1000,77 @@ function resolveTabColor(spec: string, compiled: CompiledTheme | undefined): Col
  * is a guess. Written at PROJECT visibility, which survives a copy of the file
  * and rides the column rather than the index (spike 5).
  */
-async function manifestRequests(
-  ctx: Awaited<ReturnType<ToolDeps["getContext"]>>,
-  spreadsheetId: string,
-  compiled: CompiledTheme,
-  surface: StyleSurface,
-): Promise<unknown[]> {
-  const existing = await readMetadata(ctx, spreadsheetId);
+function manifestRequest(compiled: CompiledTheme, existing: MetadataEntry[]): unknown {
   const value = manifestValue(compiled);
   const hit = existing.find((e) => e.key === METADATA_KEYS.manifest && e.scope === "SPREADSHEET");
 
   if (hit) {
-    return [
-      {
-        updateDeveloperMetadata: {
-          dataFilters: [{ developerMetadataLookup: { metadataKey: METADATA_KEYS.manifest } }],
-          developerMetadata: { metadataKey: METADATA_KEYS.manifest, metadataValue: value },
-          fields: "metadataValue",
-        },
+    return {
+      updateDeveloperMetadata: {
+        dataFilters: [
+          {
+            developerMetadataLookup: {
+              metadataKey: METADATA_KEYS.manifest,
+              metadataLocation: { spreadsheet: true },
+              locationMatchingStrategy: "EXACT_LOCATION",
+            },
+          },
+        ],
+        developerMetadata: { metadataKey: METADATA_KEYS.manifest, metadataValue: value },
+        fields: "metadataValue",
       },
-    ];
+    };
   }
-  void surface;
-  return [
-    {
-      createDeveloperMetadata: {
-        developerMetadata: {
-          metadataKey: METADATA_KEYS.manifest,
-          metadataValue: value,
-          location: { spreadsheet: true },
-          visibility: "PROJECT",
-        },
+  return {
+    createDeveloperMetadata: {
+      developerMetadata: {
+        metadataKey: METADATA_KEYS.manifest,
+        metadataValue: value,
+        location: { spreadsheet: true },
+        visibility: "PROJECT",
       },
     },
-  ];
+  };
 }
 
-function sheetMetadataRequests(
+/** The same, for one tab, so a workbook can hold a model tab beside trackers. */
+function sheetMetadataRequest(
   compiled: CompiledTheme,
   sheetId: number,
-  surface: StyleSurface,
-): unknown[] {
-  void surface;
-  return [
-    {
-      createDeveloperMetadata: {
-        developerMetadata: {
-          metadataKey: METADATA_KEYS.sheet,
-          metadataValue: JSON.stringify({
-            preset: compiled.preset.name,
-            archetype: compiled.archetype,
-          }),
-          location: { sheetId },
-          visibility: "PROJECT",
-        },
+  existing: MetadataEntry[],
+): unknown {
+  const value = JSON.stringify({ preset: compiled.preset.name, archetype: compiled.archetype });
+  const hit = existing.find(
+    (e) => e.key === METADATA_KEYS.sheet && e.scope === "SHEET" && e.sheetId === sheetId,
+  );
+
+  if (hit) {
+    return {
+      updateDeveloperMetadata: {
+        dataFilters: [
+          {
+            developerMetadataLookup: {
+              metadataKey: METADATA_KEYS.sheet,
+              metadataLocation: { sheetId },
+              locationMatchingStrategy: "EXACT_LOCATION",
+            },
+          },
+        ],
+        developerMetadata: { metadataKey: METADATA_KEYS.sheet, metadataValue: value },
+        fields: "metadataValue",
+      },
+    };
+  }
+  return {
+    createDeveloperMetadata: {
+      developerMetadata: {
+        metadataKey: METADATA_KEYS.sheet,
+        metadataValue: value,
+        location: { sheetId },
+        visibility: "PROJECT",
       },
     },
-  ];
+  };
 }
 
 async function readMetadata(

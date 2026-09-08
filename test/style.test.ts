@@ -105,6 +105,49 @@ describe("applying a preset theme", () => {
     expect(created).toHaveLength(0);
   });
 
+  test("naming a tab records what that tab is, once", async () => {
+    const { run, calls } = tool();
+    await run({ ...base, preset: "park", archetype: "model" });
+
+    const created = requestsOfKind(calls, "createDeveloperMetadata");
+    const perSheet = created.find(
+      (m) => (m["developerMetadata"] as { metadataKey: string }).metadataKey === "gsheets.sheet",
+    )!;
+    const value = JSON.parse(
+      (perSheet["developerMetadata"] as { metadataValue: string }).metadataValue,
+    );
+    expect(value).toEqual({ preset: "park", archetype: "model" });
+    expect((perSheet["developerMetadata"] as { location: unknown }).location).toEqual({ sheetId: 0 });
+  });
+
+  test("a tab that already carries the record is updated rather than duplicated", async () => {
+    const { run, calls } = tool({
+      ...structuredClone(SHEET),
+      developerMetadata: [
+        {
+          metadataKey: "gsheets.sheet",
+          metadataValue: JSON.stringify({ preset: "neutral", archetype: "tracker" }),
+          location: { sheetId: 0 },
+        },
+      ],
+    });
+    await run({ ...base, preset: "park" });
+
+    const created = requestsOfKind(calls, "createDeveloperMetadata").filter(
+      (m) => (m["developerMetadata"] as { metadataKey: string }).metadataKey === "gsheets.sheet",
+    );
+    expect(created).toHaveLength(0);
+    expect(requestsOfKind(calls, "updateDeveloperMetadata")).toHaveLength(1);
+  });
+
+  test("painting one range with a preset does not claim the tab is that preset", async () => {
+    const { run, calls } = tool();
+    await run({ ...base, range: "A1:E1", preset: "park", style: { role: "header" } });
+
+    expect(requestsOfKind(calls, "createDeveloperMetadata")).toHaveLength(0);
+    expect(requestsOfKind(calls, "updateSpreadsheetProperties")).toHaveLength(0);
+  });
+
   test("an unknown preset names the ones that exist", async () => {
     const { run } = tool();
     const response = await run({ spreadsheet_id: WRITE_SPREADSHEET_ID, preset: "burgundy" });
