@@ -1,0 +1,23 @@
+{
+  "name": "gsheets-pro",
+  "displayName": "gsheets-pro",
+  "version": "0.1.0",
+  "description": "Makes Claude build Google Sheets a brilliant, organized human would build: native Tables, theme-driven color, readable formulas, source-cited assumptions, a lint and render verify loop, and refusals that keep a shared spreadsheet safe to co-own with colleagues.",
+  "author": {
+    "name": "jordfan",
+    "url": "https://github.com/jordfan"
+  },
+  "homepage": "https://github.com/jordfan/gsheets-pro",
+  "repository": "https://github.com/jordfan/gsheets-pro",
+  "license": "MIT",
+  "keywords": [
+    "google-sheets",
+    "spreadsheets",
+    "tracker",
+    "budget",
+    "formatting",
+    "tables",
+    "lint",
+    "agent-skills"
+  ]
+}

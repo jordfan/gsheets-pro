@@ -1,0 +1,36 @@
+{
+  "name": "gsheets-pro-local",
+  "displayName": "gsheets-pro (local server)",
+  "version": "0.1.0",
+  "description": "Starts the bundled gsheets-pro MCP server over stdio using your own Google OAuth client. Enable it alongside the gsheets-pro plugin, which carries the skill, the presets, and the hooks. Stdio servers do not start in Claude Code cloud sessions; host the server over HTTP for those.",
+  "author": {
+    "name": "jordfan",
+    "url": "https://github.com/jordfan"
+  },
+  "homepage": "https://github.com/jordfan/gsheets-pro",
+  "repository": "https://github.com/jordfan/gsheets-pro",
+  "license": "MIT",
+  "keywords": ["google-sheets", "mcp-server", "stdio"],
+  "userConfig": {
+    "google_client_id": {
+      "type": "string",
+      "title": "Google OAuth client ID",
+      "description": "The client ID of a Desktop app OAuth client in your own Google Cloud project. Run /gsheets-pro:setup for the walkthrough. Leave empty to use Application Default Credentials from the gcloud CLI instead.",
+      "required": false
+    },
+    "google_client_secret": {
+      "type": "string",
+      "title": "Google OAuth client secret",
+      "description": "The client secret that pairs with the client ID above. Stored in your system keychain, never in settings.json.",
+      "sensitive": true,
+      "required": false
+    },
+    "default_preset": {
+      "type": "string",
+      "title": "Default style preset",
+      "description": "Which preset new spreadsheets get when a request does not name one. Ships with neutral, park, and finance-classic.",
+      "default": "neutral",
+      "required": false
+    }
+  }
+}

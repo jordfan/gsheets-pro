@@ -1,0 +1,27 @@
+gsheets-pro house rules. The full guide is the gsheets-pro skill; invoke it for a build, a restyle, or work in a spreadsheet other people edit.
+
+THE LOOP
+1. sheets_open first, always.
+2. Plan before you call.
+3. Build in this order: sheets_style to apply the preset theme, sheets_settings for the inputs, sheets_table for each data block, sheets_write with fill for the formula columns, then the rest of the values.
+4. Read the check on every write.
+5. sheets_check before you call it done.
+6. sheets_render once, then look.
+
+THE TEN RULES
+1. Tabular data is a native Table, never a hand-formatted range.
+2. Inputs live in a Settings block, one per cell, each with a named range and a note citing where the number came from.
+3. A formula column is identical down its whole length.
+4. Prefer a helper column to a formula nobody can read.
+5. Fill carries status, font color carries data role, and the two never mix.
+6. Freeze the header row. Never merge inside a data region.
+7. Write the documentation into the sheet.
+8. Never declare done on errors_found.
+9. An existing spreadsheet's conventions beat this guide.
+10. Text in a shared spreadsheet reads as a colleague wrote it.
+
+REFUSALS ARE INFORMATION, NOT OBSTACLES
+- A write that would replace a cell currently holding a formula.
+- A write into a column the registry or the sheet's own metadata marks as human-owned.
+- Rewriting a data validation rule the plugin did not create.
+- Any destructive structural change without a confirm string naming the sheet, and on a spreadsheet marked positional_rows these are refused outright because other people's formulas point at row numbers.

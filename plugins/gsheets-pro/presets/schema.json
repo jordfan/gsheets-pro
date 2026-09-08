@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jordfan/gsheets-pro/presets/schema.json",
+  "title": "gsheets-pro preset",
+  "description": "A preset compiles to a full nine-pair Google Sheets spreadsheet theme plus the role tokens every styling tool resolves against. Colors that map to a theme slot are written as ColorStyle.themeColor so Format > Theme stays the human's knob; only the roles that have no slot are written as rgbColor.",
+  "type": "object",
+  "required": ["name", "fonts", "theme", "roles", "numbers"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Preset identifier, referenced by tools as preset: \"<name>\". Matches the file name without the extension.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "description": "One sentence a human reads when choosing a preset."
+    },
+    "archetype_default": {
+      "description": "Which archetype this preset assumes when a request does not name one. tracker keeps font color out of the data language and carries state in dropdowns and conditional rules. model uses font color to encode data role, in the financial-modeling convention.",
+      "enum": ["tracker", "model"],
+      "default": "tracker"
+    },
+    "fonts": {
+      "type": "object",
+      "required": ["primary"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "type": "string",
+          "description": "Body font, written as the spreadsheet's primaryFontFamily. Must be a font Google Sheets offers, or it silently falls back to Arial."
+        },
+        "display": {
+          "type": "string",
+          "description": "Optional font for titles only. Never used for grid data, where a display face costs legibility."
+        },
+        "banned": {
+          "type": "array",
+          "description": "Fonts the loader refuses as primary or display, and the lint flags anywhere in the workbook. Use this to keep a house style off the defaults everyone else lands on.",
+          "items": { "type": "string" },
+          "default": []
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "description": "The nine spreadsheet theme slots. The Sheets API rejects a partial theme write, so all nine are required here and the tool sends all nine every time.",
+      "required": [
+        "TEXT",
+        "BACKGROUND",
+        "ACCENT1",
+        "ACCENT2",
+        "ACCENT3",
+        "ACCENT4",
+        "ACCENT5",
+        "ACCENT6",
+        "LINK"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(TEXT|BACKGROUND|ACCENT[1-6]|LINK)$": { "$ref": "#/$defs/hex" }
+      }
+    },
+    "roles": {
+      "type": "object",
+      "description": "Named tokens the styling tools accept in place of a color. A value that names a theme slot compiles to themeColor; a hex value compiles to rgbColor. There is deliberately no footer role, and additionalProperties is false so one cannot be added: a Table's footerColorStyle is not cosmetic. Setting it converts the last data row into a footer and silently overwrites that row's cells with SUM aggregations. A totals row must be an explicit request, never a side effect of a palette.",
+      "required": ["header", "band1", "band2", "ok", "warn", "flag", "muted"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "font": { "enum": ["primary", "display"] },
+            "size": { "type": "integer", "minimum": 8, "maximum": 36 },
+            "text": { "$ref": "#/$defs/colorToken" },
+            "bold": { "type": "boolean" }
+          }
+        },
+        "header": {
+          "type": "object",
+          "required": ["fill", "text"],
+          "additionalProperties": false,
+          "properties": {
+            "fill": { "$ref": "#/$defs/colorToken" },
+            "text": { "$ref": "#/$defs/colorToken" },
+            "bold": { "type": "boolean" }
+          }
+        },
+        "band1": { "$ref": "#/$defs/colorToken" },
+        "band2": { "$ref": "#/$defs/colorToken" },
+        "input": { "$ref": "#/$defs/colorToken" },
+        "formula": { "$ref": "#/$defs/colorToken" },
+        "cross_sheet": { "$ref": "#/$defs/colorToken" },
+        "ok": { "$ref": "#/$defs/colorToken" },
+        "warn": { "$ref": "#/$defs/colorToken" },
+        "flag": { "$ref": "#/$defs/colorToken" },
+        "muted": { "$ref": "#/$defs/colorToken" }
+      }
+    },
+    "numbers": {
+      "type": "object",
+      "description": "Number format patterns applied by column type. Percentages are always stored as fractions, so 0.256 renders as 25.6%.",
+      "required": ["currency", "percent", "date", "integer"],
+      "additionalProperties": false,
+      "properties": {
+        "currency": { "type": "string" },
+        "percent": { "type": "string" },
+        "date": { "type": "string" },
+        "integer": { "type": "string" },
+        "decimal": { "type": "string" },
+        "multiple": { "type": "string" }
+      }
+    },
+    "tabs": {
+      "type": "object",
+      "description": "Tab colors by sheet role, so inputs, workings, and outputs are told apart before anyone opens a tab.",
+      "additionalProperties": false,
+      "properties": {
+        "inputs": { "$ref": "#/$defs/colorToken" },
+        "workings": { "$ref": "#/$defs/colorToken" },
+        "outputs": { "$ref": "#/$defs/colorToken" }
+      }
+    },
+    "gridlines": {
+      "description": "always_show keeps gridlines on. hide_when_banded turns them off on any sheet where banding or a Table already separates rows.",
+      "enum": ["always_show", "hide_when_banded"],
+      "default": "hide_when_banded"
+    }
+  },
+  "$defs": {
+    "hex": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "Six-digit hex color, with the leading hash."
+    },
+    "colorToken": {
+      "description": "Either a theme slot name, which compiles to ColorStyle.themeColor and re-skins when the preset changes, or a hex value for a color no slot covers.",
+      "oneOf": [
+        { "enum": ["TEXT", "BACKGROUND", "ACCENT1", "ACCENT2", "ACCENT3", "ACCENT4", "ACCENT5", "ACCENT6", "LINK"] },
+        { "$ref": "#/$defs/hex" }
+      ]
+    }
+  }
+}

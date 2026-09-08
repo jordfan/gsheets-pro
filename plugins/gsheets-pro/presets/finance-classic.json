@@ -1,0 +1,49 @@
+{
+  "$schema": "./schema.json",
+  "name": "finance-classic",
+  "description": "The financial-modeling convention: blue typed inputs, black local formulas, green cross-sheet links, yellow fill on the assumptions a reviewer must check. Defaults to the model archetype, where font color carries meaning and banding would fight it.",
+  "archetype_default": "model",
+  "fonts": {
+    "primary": "Arial",
+    "display": "Arial",
+    "banned": []
+  },
+  "theme": {
+    "TEXT": "#000000",
+    "BACKGROUND": "#FFFFFF",
+    "ACCENT1": "#1F3864",
+    "ACCENT2": "#2E75B6",
+    "ACCENT3": "#008000",
+    "ACCENT4": "#FFFF00",
+    "ACCENT5": "#BF8F00",
+    "ACCENT6": "#C00000",
+    "LINK": "#0563C1"
+  },
+  "roles": {
+    "title": { "font": "display", "size": 14, "text": "ACCENT1", "bold": true },
+    "header": { "fill": "ACCENT1", "text": "BACKGROUND", "bold": true },
+    "band1": "BACKGROUND",
+    "band2": "BACKGROUND",
+    "input": "#0000FF",
+    "formula": "TEXT",
+    "cross_sheet": "ACCENT3",
+    "ok": "#E2EFDA",
+    "warn": "ACCENT4",
+    "flag": "#F8CBAD",
+    "muted": "#808080"
+  },
+  "numbers": {
+    "currency": "\"$\"#,##0;(\"$\"#,##0);\"-\"",
+    "percent": "0.0%",
+    "date": "yyyy-mm-dd",
+    "integer": "#,##0",
+    "decimal": "#,##0.00",
+    "multiple": "0.0\"x\""
+  },
+  "tabs": {
+    "inputs": "ACCENT4",
+    "workings": "ACCENT2",
+    "outputs": "ACCENT1"
+  },
+  "gridlines": "always_show"
+}

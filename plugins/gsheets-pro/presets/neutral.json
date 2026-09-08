@@ -1,0 +1,49 @@
+{
+  "$schema": "./schema.json",
+  "name": "neutral",
+  "description": "The default. A quiet slate palette that looks deliberate without belonging to anyone's brand, so a sheet built with it reads as careful rather than decorated.",
+  "archetype_default": "tracker",
+  "fonts": {
+    "primary": "Arial",
+    "display": "Arial",
+    "banned": []
+  },
+  "theme": {
+    "TEXT": "#1A1A1A",
+    "BACKGROUND": "#FFFFFF",
+    "ACCENT1": "#35506B",
+    "ACCENT2": "#5B7C99",
+    "ACCENT3": "#3F7F6B",
+    "ACCENT4": "#C9A227",
+    "ACCENT5": "#B25E28",
+    "ACCENT6": "#9B4A44",
+    "LINK": "#1155CC"
+  },
+  "roles": {
+    "title": { "font": "display", "size": 14, "text": "ACCENT1", "bold": true },
+    "header": { "fill": "ACCENT1", "text": "BACKGROUND", "bold": true },
+    "band1": "BACKGROUND",
+    "band2": "#F2F5F8",
+    "input": "#1155CC",
+    "formula": "TEXT",
+    "cross_sheet": "ACCENT3",
+    "ok": "#E3F0E9",
+    "warn": "#FBF0D3",
+    "flag": "#F5E2E0",
+    "muted": "#6B7280"
+  },
+  "numbers": {
+    "currency": "\"$\"#,##0;(\"$\"#,##0);\"-\"",
+    "percent": "0.0%",
+    "date": "yyyy-mm-dd",
+    "integer": "#,##0",
+    "decimal": "#,##0.00",
+    "multiple": "0.0\"x\""
+  },
+  "tabs": {
+    "inputs": "ACCENT4",
+    "workings": "ACCENT2",
+    "outputs": "ACCENT1"
+  },
+  "gridlines": "hide_when_banded"
+}

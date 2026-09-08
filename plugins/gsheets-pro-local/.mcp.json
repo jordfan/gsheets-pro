@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sheets": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/../../dist/cli.js", "stdio"],
+      "env": {
+        "GSHEETS_PRO_DATA": "${CLAUDE_PLUGIN_DATA}",
+        "GSHEETS_PRO_CLIENT_ID": "${user_config.google_client_id}",
+        "GSHEETS_PRO_CLIENT_SECRET": "${user_config.google_client_secret}",
+        "GSHEETS_PRO_DEFAULT_PRESET": "${user_config.default_preset}"
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "./schema.json",
+  "name": "park",
+  "description": "A green house palette with a serif display face for titles. Orange is held back for status and brick for flags, so a status column stays readable against the greens.",
+  "archetype_default": "tracker",
+  "fonts": {
+    "primary": "Open Sans",
+    "display": "EB Garamond",
+    "banned": ["Inter", "Roboto", "Arial"]
+  },
+  "theme": {
+    "TEXT": "#000000",
+    "BACKGROUND": "#FAFAF8",
+    "ACCENT1": "#187054",
+    "ACCENT2": "#009C77",
+    "ACCENT3": "#31B974",
+    "ACCENT4": "#FEBF3E",
+    "ACCENT5": "#EB6222",
+    "ACCENT6": "#A84B38",
+    "LINK": "#187054"
+  },
+  "roles": {
+    "title": { "font": "display", "size": 16, "text": "ACCENT1", "bold": false },
+    "header": { "fill": "ACCENT1", "text": "BACKGROUND", "bold": true },
+    "band1": "BACKGROUND",
+    "band2": "#EEF4F1",
+    "input": "#1155CC",
+    "formula": "TEXT",
+    "cross_sheet": "ACCENT2",
+    "ok": "#DDF3E6",
+    "warn": "#FFF1CC",
+    "flag": "#F3E1DC",
+    "muted": "#6B7770"
+  },
+  "numbers": {
+    "currency": "\"$\"#,##0;(\"$\"#,##0);\"-\"",
+    "percent": "0.0%",
+    "date": "yyyy-mm-dd",
+    "integer": "#,##0",
+    "decimal": "#,##0.00",
+    "multiple": "0.0\"x\""
+  },
+  "tabs": {
+    "inputs": "ACCENT4",
+    "workings": "ACCENT2",
+    "outputs": "ACCENT1"
+  },
+  "gridlines": "hide_when_banded"
+}

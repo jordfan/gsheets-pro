@@ -1,0 +1,52 @@
+{
+  "name": "gsheets-pro",
+  "version": "0.1.0",
+  "description": "A Google Sheets MCP server and Claude Code plugin that makes sheets a brilliant, organized human would make.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "gsheets-pro": "dist/cli.js"
+  },
+  "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./lib/*": "./dist/lib/*.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "card": "node scripts/card.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@googleapis/drive": "^22.0.0",
+    "@googleapis/sheets": "^14.0.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "google-auth-library": "^11.0.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "mcp",
+    "mcp-server",
+    "google-sheets",
+    "spreadsheets",
+    "agent-skills"
+  ]
+}

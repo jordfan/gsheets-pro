@@ -1,0 +1,42 @@
+{
+  "name": "gsheets-pro",
+  "owner": {
+    "name": "jordfan",
+    "url": "https://github.com/jordfan"
+  },
+  "description": "Google Sheets for Claude Code that produces sheets a careful human would recognize as their own: native Tables, on-brand theming, readable formulas, a lint and render verify loop, and protections so an agent and a colleague can share one spreadsheet.",
+  "version": "0.1.0",
+  "plugins": [
+    {
+      "name": "gsheets-pro",
+      "source": "./plugins/gsheets-pro",
+      "description": "The house style, the verify loop, and the guardrails: skill, references, worked examples, presets, a sheet reviewer, and four hooks. Brings no MCP server of its own, so use it with a hosted gsheets-pro server, an existing Sheets connector, or the gsheets-pro-local plugin.",
+      "version": "0.1.0",
+      "author": { "name": "jordfan", "url": "https://github.com/jordfan" },
+      "homepage": "https://github.com/jordfan/gsheets-pro",
+      "repository": "https://github.com/jordfan/gsheets-pro",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "google-sheets",
+        "spreadsheets",
+        "formatting",
+        "tables",
+        "lint",
+        "agent-skills"
+      ]
+    },
+    {
+      "name": "gsheets-pro-local",
+      "source": "./plugins/gsheets-pro-local",
+      "description": "Runs the bundled gsheets-pro MCP server over stdio on your own machine, with your own Google OAuth client. Enable it alongside gsheets-pro. Not usable in Claude Code cloud sessions, which cannot start stdio servers.",
+      "version": "0.1.0",
+      "author": { "name": "jordfan", "url": "https://github.com/jordfan" },
+      "homepage": "https://github.com/jordfan/gsheets-pro",
+      "repository": "https://github.com/jordfan/gsheets-pro",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["google-sheets", "mcp-server", "stdio"]
+    }
+  ]
+}
