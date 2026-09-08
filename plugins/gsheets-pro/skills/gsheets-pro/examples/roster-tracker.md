@@ -170,11 +170,12 @@ sheets_table {
   "freeze_header": true,
   "status_fill_rules": true,
   "status_column": "Status",
-  "status_roles": {
+  "status_colors": {
     "Time confirmed by family": "ok",
     "Time offered to family": "warn",
+    "Details in, time not yet offered": "warn",
     "Waitlisted": "warn",
-    "Not continuing this term": "muted"
+    "Not continuing this term": "flag"
   }
 }
 ```
@@ -190,8 +191,13 @@ three `agent`. That is the contract every later write is checked against, and it
 is what turns a stray write into somebody's typing into a refusal rather than a
 surprise.
 
-**`status_roles` maps options to fill roles explicitly.** Any option left out is
-painted with the `muted` role, so name every option whose color you care about.
+**`status_colors` maps options to fill roles, and here it has to.** Left to
+itself, `status_fill_rules` recognizes common single words: an option starting
+"Confirmed", "Paid" or "Done" gets `ok`, one starting "Pending" or "Waiting"
+gets `warn`, one starting "Declined" or "Overdue" gets `flag`. An option it does
+not recognize gets **no rule at all**, which is quiet rather than wrong, but it
+does mean a sheet whose statuses are sentences comes out unpainted. Every option
+here is a sentence, so every one of them is mapped by hand.
 
 **The Table starts at row 1** so the header freezes cleanly. The summary count
 goes on the About tab rather than above the data.
