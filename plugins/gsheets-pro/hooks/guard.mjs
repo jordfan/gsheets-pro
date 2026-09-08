@@ -8,12 +8,13 @@
 // That is what lets a fresh clone in a cloud session refuse a write into a
 // colleague's columns on the very first call.
 //
-// The hook decides between asking and denying by reading `permission_mode`
-// rather than assuming a person is watching. In a mode where prompts reach a
-// human, asking is right: they know things the registry does not. In a mode
-// where prompts are suppressed or auto-answered, an ask would sail through, so
-// the answer is a denial that explains itself and carries the card, making the
-// retry an informed one instead of the same call again.
+// The hook decides between asking and denying by working out whether anybody
+// is there to answer, which `isUnattended` in state.mjs does from the
+// environment rather than from `permission_mode`. When a person is present,
+// asking is right: they know things the registry does not. When nobody is, an
+// ask stalls the run, so the answer is a denial that explains itself and
+// carries the card, making the retry an informed one rather than the same call
+// again.
 
 import {
   readInput,
@@ -21,15 +22,9 @@ import {
   readRegistry,
   registryEntryFor,
   sheetsTool,
+  isUnattended,
   emit,
 } from "./state.mjs";
-
-// Modes where the tool call is auto-approved or the prompt is suppressed, so
-// an `ask` would not actually reach anyone. Every other mode, including any
-// future one this list does not know about, gets `ask`: a person is more likely
-// present than not, and a wrong `ask` costs a keystroke while a wrong `deny`
-// blocks legitimate work.
-const PROMPTLESS_MODES = new Set(["bypassPermissions", "dontAsk"]);
 
 const PROTECTED_OWNERS = new Set(["human", "shared"]);
 
@@ -146,18 +141,21 @@ async function main() {
   const concern = assess(tool, input.tool_input ?? {}, entry);
   if (!concern) emit(null);
 
-  const promptless = PROMPTLESS_MODES.has(input.permission_mode);
-  const decision = promptless ? "deny" : "ask";
+  const unattended = isUnattended(input);
+  const decision = unattended ? "deny" : "ask";
 
   const reason = [concern];
 
-  if (promptless) {
+  if (unattended) {
+    // A deny reason reaches the model as the tool's error text, so this is
+    // read, not discarded. Say what to do instead, then attach the card, since
+    // an unattended run may not have loaded the skill.
     reason.push(
       "",
-      "This session runs without permission prompts, so this is a denial rather than a " +
-        "question. If the change is genuinely wanted, say so in your reply and leave it " +
-        "for a person to run, or take the narrower action that does not touch what " +
-        "somebody else owns.",
+      "Nobody is watching this run, so this is a denial rather than a question. " +
+        "Do not retry it. Either take the narrower action that leaves what somebody " +
+        "else owns alone, or finish the rest of the work and say plainly in your " +
+        "summary what you did not do and why, so a person can run it themselves.",
     );
     const card = readCard();
     if (card) reason.push("", "---", "", card);

@@ -114,6 +114,13 @@ Workable for a fixed set of sheets, poor for anything else.
 `gsheets-pro-local` plugin therefore does nothing there. Host the server over
 HTTP for cloud sessions and scheduled tasks.
 
+**A plugin declared in a repository's settings does not install in a cloud
+run.** The marketplace is never cloned and the skill comes back unknown, so a
+scheduled run would otherwise work without any of these rules. Repository hooks
+and skills do load, which is why `scripts/vendor.mjs` exists: it copies the
+guide, the hooks, and the presets into the repository's own `.claude/`
+directory. `docs/cloud.md` has the measurements.
+
 **No elicitation.** The server cannot prompt mid-call through stateless HTTP or
 through an aggregator, so every confirmation is an argument (`confirm`, `force`)
 or a permission decision from the guard hook, never an interactive dialog from

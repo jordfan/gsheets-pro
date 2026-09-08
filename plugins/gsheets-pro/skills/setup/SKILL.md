@@ -148,6 +148,32 @@ Ubuntu. Everything except `sheets_render` works without it.
 writes per minute per user. The plugin backs off and retries, but a very large
 build can still hit it. Wait a minute and continue.
 
+## Cloud sessions and scheduled runs
+
+Two things are different there, and both are measured rather than assumed.
+
+**The stdio server does not start**, so `gsheets-pro-local` does nothing in a
+cloud session. Run the server over HTTP and add an HTTP entry with a bearer
+token to the repository's `.mcp.json`. `docs/hosting.md` covers it.
+
+**Declaring this plugin in a repository's `.claude/settings.json` does not
+install it.** In a scheduled routine the marketplace is never cloned and the
+skill is unknown. Repository hooks and skills do load, so for a repository whose
+scheduled runs touch spreadsheets, copy the guide in:
+
+```
+node scripts/vendor.mjs /path/to/your-repo
+```
+
+That puts the skill, the hooks, and the presets under the repository's
+`.claude/` directory and registers the hooks in its `settings.json`. Commit the
+result, because a scheduled run gets a fresh clone. Re-running is safe: it
+replaces what it wrote before and leaves other hooks alone. Run it again after
+pulling a new version.
+
+`docs/cloud.md` has the full findings, including why the guard denies rather
+than asks when nobody is watching.
+
 ## What is stored, and where
 
 The token, and only the token, in the plugin's data directory. On a normal

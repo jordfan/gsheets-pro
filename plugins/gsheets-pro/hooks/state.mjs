@@ -11,17 +11,34 @@
 // so it gets injected again, which costs tokens but never leaves the model
 // working without the rules.
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, rmSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
 
 const HOOK_DIR = dirname(fileURLToPath(import.meta.url));
 
-/** The plugin's own root, derived from this file rather than from an env var. */
-export const PLUGIN_ROOT = join(HOOK_DIR, "..");
+// These hooks run from two different layouts, so nothing here reads
+// ${CLAUDE_PLUGIN_ROOT}. Everything resolves relative to this file.
+//
+//   installed as a plugin   <plugin>/hooks/            card at ../skills/gsheets-pro/CARD.md
+//   vendored into a repo    <repo>/.claude/hooks/gsheets-pro/   card at ../../skills/gsheets-pro/CARD.md
+//
+// Vendoring exists because a plugin declared in a repository's
+// .claude/settings.json does not install in a scheduled cloud run, while
+// repository hooks and skills load normally. scripts/vendor.mjs writes the
+// second layout. See docs/cloud.md.
+const firstExisting = (candidates) => candidates.find((path) => existsSync(path)) ?? null;
 
-export const CARD_PATH = join(PLUGIN_ROOT, "skills/gsheets-pro/CARD.md");
+export const CARD_PATH = firstExisting([
+  join(HOOK_DIR, "..", "skills", "gsheets-pro", "CARD.md"),
+  join(HOOK_DIR, "..", "..", "skills", "gsheets-pro", "CARD.md"),
+]);
+
+export const PRESETS_DIR = firstExisting([
+  join(HOOK_DIR, "..", "presets"),
+  join(HOOK_DIR, "..", "..", "gsheets-pro", "presets"),
+]);
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -119,11 +136,44 @@ export async function readInput() {
 }
 
 export function readCard() {
+  if (!CARD_PATH) return null;
   try {
     return readFileSync(CARD_PATH, "utf8").replace(/^<!--[\s\S]*?-->\s*/, "").trim();
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether this run has nobody at the keyboard.
+ *
+ * Verified in the cloud smoke test: `permission_mode` cannot answer this. A
+ * scheduled routine reported `permission_mode: "default"`, so a PreToolUse
+ * `ask` produced a permission prompt with nobody to answer it and the run
+ * stalled until it timed out. The environment does answer it.
+ *
+ * Three signals, any one of which is enough:
+ *
+ *   permission_mode          bypassPermissions or dontAsk. Prompts are
+ *                            suppressed or auto-answered, so an ask is either
+ *                            ignored or waved through.
+ *   CLAUDE_CODE_ENTRYPOINT   "remote_trigger" is a routine firing on a
+ *                            schedule. A human-started cloud session has a
+ *                            different entrypoint, and still gets `ask`,
+ *                            because somebody is watching it.
+ *   CLAUDE_CODE_HOLD_UNANSWERED_PARKED_PERMISSION
+ *                            set by the harness in exactly the runs where an
+ *                            unanswered prompt parks rather than resolving.
+ *
+ * CLAUDE_CODE_REMOTE is deliberately not a signal. It is true for interactive
+ * cloud sessions too, and denying those would block a person who is right
+ * there and able to decide.
+ */
+export function isUnattended(input) {
+  if (["bypassPermissions", "dontAsk"].includes(input?.permission_mode)) return true;
+  if (process.env.CLAUDE_CODE_ENTRYPOINT === "remote_trigger") return true;
+  if (process.env.CLAUDE_CODE_HOLD_UNANSWERED_PARKED_PERMISSION) return true;
+  return false;
 }
 
 /**
