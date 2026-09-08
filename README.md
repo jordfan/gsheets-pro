@@ -36,7 +36,7 @@ of every session.
 | `sheets_write`, `sheets_style`, presets compiler | in progress |
 | `sheets_table`, `sheets_settings`, `sheets_validation`, `sheets_conditional_format` | in progress |
 | `sheets_structure`, `sheets_find`, `sheets_batch` | in progress |
-| `sheets_check`, `sheets_render` | next |
+| `sheets_check`, `sheets_render`, the seven v1 lint rules | working, live tested |
 | Docs, setup guide, evals, releases | later |
 
 The API behaviors this design rests on were tested live; the verdicts are in
