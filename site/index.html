@@ -1,1218 +1,506 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>gsheets-pro</title>
-<meta name="description" content="A Claude Code plugin for Google Sheets: thirteen task-shaped tools, native Tables and themes, a lint and render verify loop, and guards so an agent and a colleague can share one spreadsheet.">
-<meta name="color-scheme" content="light dark">
+<meta name="description" content="Google Sheets for Claude Code, built for an agent that can already think. Thirteen tools, a lint, a render, and guards for sheets other people edit.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400..600&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23182220'/%3E%3Cg fill='%23F4F5F0'%3E%3Crect x='5' y='7' width='22' height='4'/%3E%3Crect x='5' y='13' width='9' height='3'/%3E%3Crect x='18' y='13' width='9' height='3'/%3E%3Crect x='5' y='18' width='9' height='3'/%3E%3Crect x='18' y='18' width='9' height='3'/%3E%3Crect x='5' y='23' width='9' height='3'/%3E%3Crect x='18' y='23' width='9' height='3'/%3E%3C/g%3E%3C/svg%3E">
-
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* ------------------------------------------------------------------
-   Tokens. The light palette is defined once, on bare :root.
-   Names follow the plugin's own style role tokens where they line up.
-   ------------------------------------------------------------------ */
-:root {
-  --paper:        #f4f5f0;
-  --surface:      #ffffff;
-  --band1:        #ffffff;
-  --band2:        #eaefe6;
-  --rule:         #d2d8cd;
-  --rule-strong:  #b3bcac;
-  --ink:          #16191a;
-  --muted:        #5c645d;
-  --header-fill:  #182220;
-  --header-text:  #f1f3ec;
-  --link:         #1d4e89;
-  --link-hover:   #12395f;
-  --ok:           #2f6b4f;
-  --warn:         #8a6a16;
-  --flag:         #a3311f;
-  --flag-soft:    #f3e2de;
-  --ok-soft:      #e0ece4;
-  --code-bg:      #eceee6;
-
-  --bar-h: 46px;
-  --gutter: 3.5rem;
-  --measure: 66ch;
-  --pad-x: clamp(1.15rem, 4vw, 2.75rem);
-
-  --sans: "Archivo", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
-  --serif: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper:       #0f1210;
-    --surface:     #161a15;
-    --band1:       #161a15;
-    --band2:       #1d221b;
-    --rule:        #2b322a;
-    --rule-strong: #3d463b;
-    --ink:         #e6e9e0;
-    --muted:       #98a094;
-    --header-fill: #374236;
-    --header-text: #f1f4ec;
-    --link:        #8ab7ea;
-    --link-hover:  #b3d1f3;
-    --ok:          #74c79a;
-    --warn:        #d8b565;
-    --flag:        #ec8b78;
-    --flag-soft:   #33211d;
-    --ok-soft:     #17281f;
-    --code-bg:     #1b201a;
+  :root {
+    --paper: #F3F5F4;
+    --paper-2: #FFFFFF;
+    --ink: #131A17;
+    --ink-2: #4A5652;
+    --ink-3: #7B8783;
+    --line: #D6DDD9;
+    --line-2: #E6EBE8;
+    --green: #187054;
+    --green-ink: #0F4D3A;
+    --green-tint: #E3F0EA;
+    --band: #E9F0EC;
+    --ok: #DDF3E6;
+    --ok-ink: #17603F;
+    --warn: #FFF1CC;
+    --warn-ink: #6F4E00;
+    --flag: #F3E1DC;
+    --flag-ink: #8C3A2B;
+    --link: #1D4ED8;
+    --grid: #DADFDD;
+    --sheet-paper: #FFFFFF;
+    --code-bg: #FFFFFF;
+    --shadow: 0 1px 0 rgba(19,26,23,.06), 0 10px 30px -18px rgba(19,26,23,.25);
+    color-scheme: light;
   }
-}
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0F1412;
+      --paper-2: #151C18;
+      --ink: #E8ECEA;
+      --ink-2: #B4BDB8;
+      --ink-3: #7F8985;
+      --line: #2A3530;
+      --line-2: #1F2824;
+      --green: #2E9B78;
+      --green-ink: #8FD9BC;
+      --green-tint: #15291F;
+      --band: #16201B;
+      --ok: #163A2A;
+      --ok-ink: #9EE0BF;
+      --warn: #3D3110;
+      --warn-ink: #F0CF7A;
+      --flag: #3E211B;
+      --flag-ink: #F0A896;
+      --link: #8FB4FF;
+      --grid: #2A3530;
+      --sheet-paper: #131A17;
+      --code-bg: #131A17;
+      --shadow: 0 1px 0 rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0F1412;
+    --paper-2: #151C18;
+    --ink: #E8ECEA;
+    --ink-2: #B4BDB8;
+    --ink-3: #7F8985;
+    --line: #2A3530;
+    --line-2: #1F2824;
+    --green: #2E9B78;
+    --green-ink: #8FD9BC;
+    --green-tint: #15291F;
+    --band: #16201B;
+    --ok: #163A2A;
+    --ok-ink: #9EE0BF;
+    --warn: #3D3110;
+    --warn-ink: #F0CF7A;
+    --flag: #3E211B;
+    --flag-ink: #F0A896;
+    --link: #8FB4FF;
+    --grid: #2A3530;
+    --sheet-paper: #131A17;
+    --code-bg: #131A17;
+    --shadow: 0 1px 0 rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
 
-:root[data-theme="dark"] {
-  --paper:       #0f1210;
-  --surface:     #161a15;
-  --band1:       #161a15;
-  --band2:       #1d221b;
-  --rule:        #2b322a;
-  --rule-strong: #3d463b;
-  --ink:         #e6e9e0;
-  --muted:       #98a094;
-  --header-fill: #374236;
-  --header-text: #f1f4ec;
-  --link:        #8ab7ea;
-  --link-hover:  #b3d1f3;
-  --ok:          #74c79a;
-  --warn:        #d8b565;
-  --flag:        #ec8b78;
-  --flag-soft:   #33211d;
-  --ok-soft:     #17281f;
-  --code-bg:     #1b201a;
-}
+  * { box-sizing: border-box; }
+  .compare > *, .four > *, .two > *, .section-head > *, .hero-grid > * { min-width: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    font-feature-settings: "tnum" 1;
+  }
+  a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  h1, h2, h3 { font-family: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(2.2rem, 5.2vw, 4.4rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.025em; }
+  h2 { font-size: clamp(1.6rem, 2.6vw, 2.2rem); font-weight: 600; line-height: 1.12; }
+  h3 { font-size: 1.05rem; font-weight: 600; line-height: 1.3; }
+  p { margin: 0; }
+  code, pre, .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .lede { color: var(--ink-2); max-width: 62ch; }
+  section { padding: 56px 0; border-top: 1px solid var(--line-2); }
+  section:first-of-type { border-top: 0; }
+  .section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px 48px; align-items: end; margin-bottom: 28px; }
+  .section-head .lede { max-width: 56ch; }
 
-/* ------------------------------------------------------------------
-   Base
-   ------------------------------------------------------------------ */
-*, *::before, *::after { box-sizing: border-box; }
+  /* top bar */
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; }
+  .bar .brand { display: inline-flex; align-items: baseline; gap: 10px; text-decoration: none; color: var(--ink); }
+  .bar .brand b { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
+  .bar .brand span { color: var(--ink-3); font-size: 0.8rem; }
+  .bar nav { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .bar nav a { color: var(--ink-2); text-decoration: none; font-size: 0.92rem; }
+  .bar nav a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--paper-2); color: var(--ink); text-decoration: none; font-weight: 500; font-size: 0.95rem; cursor: pointer; font-family: inherit; }
+  .btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.small { padding: 5px 9px; font-size: 0.8rem; }
 
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  /* hero */
+  .hero { padding: 40px 0 56px; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 32px 56px; align-items: end; }
+  .hero .lede { font-size: 1.15rem; margin-top: 18px; }
+  .hero .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+  .pre { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink-2); background: var(--paper-2); margin-bottom: 18px; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper-2); margin-top: 8px; }
+  .facts div { padding: 14px 16px; border-left: 1px solid var(--line-2); }
+  .facts div:first-child { border-left: 0; }
+  .facts b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.6rem; font-weight: 600; line-height: 1; margin-bottom: 6px; }
+  .facts span { color: var(--ink-2); font-size: 0.85rem; }
 
-body {
-  margin: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: 1.0625rem;
-  line-height: 1.62;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+  /* before / after */
+  .compare { margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+  .panel header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); }
+  .panel header h3 { font-size: 0.95rem; }
+  .panel header .eyebrow { font-size: 0.68rem; }
+  .sheet { overflow-x: auto; background: var(--sheet-paper); }
+  .sheet table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.25; font-family: "Instrument Sans", Arial, sans-serif; }
+  .sheet th, .sheet td { border: 1px solid var(--grid); padding: 4px 6px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 108px; }
+  .sheet th.rn, .sheet td.rn { width: 28px; text-align: center; color: var(--ink-3); background: var(--band); font-weight: 400; font-size: 11px; }
+  .sheet .num { text-align: right; }
+  .sheet .before th { font-weight: 400; background: var(--sheet-paper); }
+  .sheet .before td.ref { color: #B00020; font-weight: 600; }
+  .sheet .before .clip { max-width: 84px; }
+  .sheet .after thead th { background: var(--green); color: #fff; font-weight: 600; border-color: var(--green); }
+  .sheet .after thead th.rn { background: var(--band); color: var(--ink-3); border-color: var(--grid); }
+  .sheet .after tbody tr:nth-child(even) td:not(.rn) { background: var(--band); }
+  .sheet .after td.ok { background: var(--ok) !important; color: var(--ok-ink); }
+  .sheet .after td.warn { background: var(--warn) !important; color: var(--warn-ink); }
+  .sheet .after td.flag { background: var(--flag) !important; color: var(--flag-ink); }
+  .sheet .after tr.frozen th { box-shadow: inset 0 -2px 0 var(--green-ink); }
+  .calls { padding: 12px 16px; border-top: 1px solid var(--line-2); font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; color: var(--ink-2); line-height: 1.7; }
+  .calls b { color: var(--ink); font-weight: 500; }
+  .calls .bad { color: var(--flag-ink); }
+  .calls .good { color: var(--ok-ink); }
+  .fx { display: flex; gap: 10px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line-2); font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--ink-2); background: var(--paper-2); overflow-x: auto; white-space: nowrap; }
+  .fx i { font-style: italic; color: var(--ink-3); }
+  .fx .ref { color: var(--ink-3); min-width: 32px; }
 
-a { color: var(--link); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
-a:hover { color: var(--link-hover); }
-a:focus-visible, button:focus-visible {
-  outline: 2px solid var(--link);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
+  /* comparison table */
+  .cmp-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); }
+  table.cmp { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 0.9rem; }
+  .cmp th, .cmp td { padding: 12px 12px; border-bottom: 1px solid var(--line-2); text-align: center; vertical-align: top; }
+  .cmp thead th { position: sticky; top: 0; background: var(--green); color: #fff; font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; text-align: center; }
+  .cmp thead th:first-child, .cmp tbody th { text-align: left; }
+  .cmp tbody th { font-weight: 600; white-space: nowrap; }
+  .cmp tbody th small { display: block; font-weight: 400; color: var(--ink-3); font-size: 0.78rem; white-space: normal; max-width: 26ch; }
+  .cmp tbody tr:nth-child(even) { background: var(--band); }
+  .cmp tbody tr.us { background: var(--green-tint); }
+  .cmp tbody tr.us th { color: var(--green-ink); }
+  .cmp .m { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ink-2); vertical-align: -2px; }
+  .cmp .m.y { background: var(--green); border-color: var(--green); }
+  .cmp .m.p { background: linear-gradient(90deg, var(--green) 50%, transparent 50%); border-color: var(--green); }
+  .cmp .m.n { background: transparent; border-color: var(--line); }
+  .cmp td.count { font-family: "IBM Plex Mono", monospace; font-size: 0.85rem; }
+  .cmp tfoot td { text-align: left; color: var(--ink-2); font-size: 0.82rem; padding: 12px 14px; line-height: 1.55; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; color: var(--ink-2); font-size: 0.85rem; }
+  .legend .m { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-2); margin-right: 6px; vertical-align: -1px; }
+  .legend .m.y { background: var(--green); border-color: var(--green); }
+  .legend .m.p { background: linear-gradient(90deg, var(--green) 50%, transparent 50%); border-color: var(--green); }
+  .legend .m.n { border-color: var(--line); }
 
-p { margin: 0 0 1.05em; max-width: var(--measure); }
-p:last-child { margin-bottom: 0; }
+  /* four panels */
+  .four { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .card p { color: var(--ink-2); font-size: 0.95rem; max-width: 52ch; }
+  .artifact { background: var(--code-bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 12px 14px; font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; line-height: 1.6; overflow-x: auto; white-space: pre; color: var(--ink); margin-top: auto; }
+  .artifact .k { color: var(--ink-3); }
+  .artifact .s { color: var(--green-ink); }
+  .artifact .r { color: var(--flag-ink); }
+  .artifact.wrap-text { white-space: pre-wrap; }
+  .toolgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 18px; font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; line-height: 1.7; margin-top: auto; }
+  .toolgrid span::before { content: "sheets_"; color: var(--ink-3); }
 
-h1, h2, h3 { font-family: var(--sans); margin: 0; text-wrap: balance; }
+  /* limits + install */
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 32px 56px; }
+  .limits { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .limits li { padding-left: 18px; position: relative; color: var(--ink-2); font-size: 0.95rem; }
+  .limits li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--flag-ink); }
+  .install { display: grid; gap: 14px; }
+  .step { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .step h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .step h3 span { font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; font-weight: 400; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+  .step p { color: var(--ink-2); font-size: 0.9rem; margin-bottom: 8px; }
+  .cmd { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--code-bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 8px 10px; font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; overflow-x: auto; }
+  .cmd + .cmd { margin-top: 6px; }
+  .cmd code { white-space: nowrap; display: block; min-width: 0; overflow-x: auto; }
+  .install > .step, .step > * { min-width: 0; }
+  .cmd .btn { flex: none; }
+  footer { padding: 32px 0 48px; border-top: 1px solid var(--line-2); color: var(--ink-3); font-size: 0.85rem; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
-h1 {
-  font-variation-settings: "wdth" 118, "wght" 800;
-  font-size: clamp(2.6rem, 7.4vw, 5.4rem);
-  line-height: 0.92;
-  letter-spacing: -0.03em;
-  margin-bottom: 0.85rem;
-}
-
-h2 {
-  font-variation-settings: "wdth" 113, "wght" 700;
-  font-size: clamp(1.5rem, 3.6vw, 2.1rem);
-  line-height: 1.1;
-  letter-spacing: -0.016em;
-  margin-bottom: 0.9rem;
-  max-width: 22ch;
-}
-
-h3 {
-  font-variation-settings: "wdth" 104, "wght" 650;
-  font-size: 1rem;
-  line-height: 1.3;
-  letter-spacing: 0.005em;
-  margin-bottom: 0.4rem;
-}
-
-code, kbd, samp, pre { font-family: var(--mono); }
-
-/* ------------------------------------------------------------------
-   The formula bar. Name box tracks which row of the page you are on.
-   ------------------------------------------------------------------ */
-.bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: var(--bar-h);
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0 var(--pad-x) 0 0.5rem;
-  background: var(--paper);
-  border-bottom: 1px solid var(--rule-strong);
-}
-
-.namebox {
-  flex: none;
-  width: 4.4rem;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--rule-strong);
-}
-
-.fx {
-  flex: none;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 1rem;
-  color: var(--muted);
-  padding-right: 0.15rem;
-  border-right: 1px solid var(--rule);
-  padding-left: 0.1rem;
-  line-height: 1;
-}
-
-.bar nav {
-  flex: 1 1 auto;
-  display: flex;
-  gap: 1.15rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  font-family: var(--sans);
-  font-size: 0.8125rem;
-  font-variation-settings: "wdth" 100, "wght" 500;
-}
-.bar nav::-webkit-scrollbar { display: none; }
-.bar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
-.bar nav a:hover { color: var(--ink); text-decoration: underline; }
-
-.themebtn {
-  flex: none;
-  font-family: var(--sans);
-  font-size: 0.75rem;
-  font-variation-settings: "wdth" 100, "wght" 550;
-  color: var(--muted);
-  background: none;
-  border: 1px solid var(--rule);
-  padding: 0.28rem 0.6rem;
-  cursor: pointer;
-}
-.themebtn:hover { color: var(--ink); border-color: var(--rule-strong); }
-
-/* Narrow screens keep the first two links and Install, which is the one that matters */
-@media (max-width: 700px) {
-  .bar nav { gap: 0.9rem; }
-  .bar nav a:nth-child(n+3):nth-last-child(n+2) { display: none; }
-}
-
-/* ------------------------------------------------------------------
-   The sheet frame: numbered rows in a left gutter
-   ------------------------------------------------------------------ */
-.row {
-  display: grid;
-  grid-template-columns: var(--gutter) minmax(0, 1fr);
-  border-bottom: 1px solid var(--rule);
-}
-.row:last-of-type { border-bottom: 0; }
-
-.row__n {
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  color: var(--muted);
-  text-align: right;
-  padding: 3.1rem 0.65rem 0 0;
-  border-right: 1px solid var(--rule);
-  user-select: none;
-}
-
-.row__body {
-  padding: 3rem var(--pad-x) 3.4rem;
-  min-width: 0;
-  max-width: 78rem;
-}
-
-@media (max-width: 760px) {
-  :root { --gutter: 0px; }
-  .row__n { display: none; }
-  .row { grid-template-columns: minmax(0, 1fr); }
-  .row__body { padding: 2.3rem var(--pad-x) 2.6rem; }
-}
-
-/* Hero row sits a little taller and carries no number padding offset */
-.row--hero .row__n { padding-top: 2.6rem; }
-.row--hero .row__body { padding-top: 2.6rem; padding-bottom: 3.6rem; }
-
-/* ------------------------------------------------------------------
-   Hero
-   ------------------------------------------------------------------ */
-.deck {
-  font-family: var(--sans);
-  font-variation-settings: "wdth" 102, "wght" 450;
-  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
-  line-height: 1.28;
-  letter-spacing: -0.012em;
-  max-width: 30ch;
-  margin: 0 0 2rem;
-  color: var(--ink);
-}
-
-.prerelease {
-  display: inline-block;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  color: var(--flag);
-  background: var(--flag-soft);
-  padding: 0.22rem 0.5rem;
-  margin-bottom: 1.4rem;
-}
-
-.hero__grid {
-  display: grid;
-  gap: clamp(1.8rem, 3.6vw, 3rem);
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  border-top: 1px solid var(--rule);
-  padding-top: 1.9rem;
-}
-@media (min-width: 1000px) {
-  .hero__grid { grid-template-columns: minmax(0, 28rem) minmax(0, 1fr); }
-}
-
-/* ------------------------------------------------------------------
-   Commands
-   ------------------------------------------------------------------ */
-.cmds { margin: 0 0 1rem; max-width: 44rem; }
-
-.cmd {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-bottom-width: 0;
-  padding: 0.6rem 0.55rem 0.6rem 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-.cmd:last-child { border-bottom-width: 1px; }
-.cmd__p { color: var(--muted); flex: none; user-select: none; }
-.cmd__t {
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: pre;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  color: var(--ink);
-}
-
-.copy {
-  flex: none;
-  font-family: var(--sans);
-  font-size: 0.6875rem;
-  font-variation-settings: "wdth" 100, "wght" 550;
-  color: var(--muted);
-  background: none;
-  border: 1px solid var(--rule);
-  padding: 0.2rem 0.45rem;
-  cursor: pointer;
-}
-.copy:hover { color: var(--ink); border-color: var(--rule-strong); }
-.copy[data-done="1"] { color: var(--ok); border-color: var(--ok); }
-
-.note {
-  font-family: var(--sans);
-  font-size: 0.8125rem;
-  font-variation-settings: "wdth" 100, "wght" 400;
-  line-height: 1.5;
-  color: var(--muted);
-  max-width: 52ch;
-  margin: 0.7rem 0 0;
-}
-
-/* ------------------------------------------------------------------
-   The rendered-sheet figure
-   ------------------------------------------------------------------ */
-figure { margin: 0; }
-.render {
-  border: 1px solid var(--rule-strong);
-  background: var(--surface);
-  padding: 0.55rem;
-  overflow-x: auto;
-}
-.render svg { display: block; width: 100%; min-width: 30rem; height: auto; }
-figcaption {
-  font-family: var(--sans);
-  font-size: 0.78rem;
-  font-variation-settings: "wdth" 100, "wght" 400;
-  line-height: 1.5;
-  color: var(--muted);
-  margin-top: 0.6rem;
-  max-width: 54ch;
-}
-
-/* SVG text roles */
-.sv-col   { font-family: var(--mono); font-size: 9px; fill: var(--muted); }
-.sv-title { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
-.sv-head  { font-family: var(--sans); font-size: 10px; font-weight: 600; fill: var(--header-text); }
-.sv-cell  { font-family: var(--sans); font-size: 10.5px; fill: var(--ink); }
-.sv-num   { font-family: var(--mono); font-size: 10px; fill: var(--ink); }
-.sv-note  { font-family: var(--serif); font-size: 9.5px; font-style: italic; fill: var(--muted); }
-.sv-ok    { fill: var(--ok); }
-.sv-warn  { fill: var(--warn); }
-.sv-flag  { fill: var(--flag); }
-
-/* ------------------------------------------------------------------
-   Tables, styled the way the plugin styles a sheet
-   ------------------------------------------------------------------ */
-.tablewrap { overflow-x: auto; border: 1px solid var(--rule-strong); background: var(--surface); }
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: var(--sans);
-  font-size: 0.84rem;
-  font-variation-settings: "wdth" 100, "wght" 400;
-  line-height: 1.45;
-  font-variant-numeric: tabular-nums;
-}
-
-caption {
-  caption-side: bottom;
-  text-align: left;
-  font-family: var(--sans);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--muted);
-  background: var(--paper);
-  border-top: 1px solid var(--rule-strong);
-  padding: 0.7rem 0.75rem 0.75rem;
-}
-caption > span { display: block; max-width: 74ch; }
-
-thead th {
-  background: var(--header-fill);
-  color: var(--header-text);
-  font-variation-settings: "wdth" 100, "wght" 600;
-  text-align: left;
-  padding: 0.6rem 0.75rem;
-  white-space: nowrap;
-  border-right: 1px solid var(--header-fill);
-}
-
-tbody th, tbody td {
-  padding: 0.58rem 0.75rem;
-  border-top: 1px solid var(--rule);
-  vertical-align: top;
-  text-align: left;
-}
-tbody th { font-variation-settings: "wdth" 100, "wght" 600; white-space: nowrap; }
-tbody tr:nth-child(odd)  { background: var(--band1); }
-tbody tr:nth-child(even) { background: var(--band2); }
-
-/* Tool table: a frozen header row, which is exactly what rule six asks for */
-.t-tools thead th { position: sticky; top: var(--bar-h); z-index: 5; }
-.t-tools { table-layout: fixed; }
-.t-tools tbody th { font-family: var(--mono); font-size: 0.78rem; font-weight: 500; color: var(--ink); width: 14.5rem; }
-.t-tools tbody td { font-family: var(--serif); font-size: 0.95rem; line-height: 1.5; }
-@media (max-width: 700px) {
-  .t-tools { table-layout: auto; }
-  .t-tools tbody th { width: auto; }
-}
-
-/* Comparison table: a frozen first column, which is what you want sideways */
-.t-cmp { min-width: 58rem; }
-.t-cmp th[scope="row"] {
-  position: sticky;
-  left: 0;
-  z-index: 4;
-  min-width: 15rem;
-  border-right: 1px solid var(--rule-strong);
-}
-.t-cmp tbody tr:nth-child(odd)  th[scope="row"] { background: var(--band1); }
-.t-cmp tbody tr:nth-child(even) th[scope="row"] { background: var(--band2); }
-.t-cmp thead th:first-child { position: sticky; left: 0; z-index: 6; }
-.t-cmp .sub {
-  display: block;
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  font-weight: 400;
-  color: var(--muted);
-  margin-top: 0.15rem;
-  white-space: normal;
-}
-.t-cmp .mine th[scope="row"] { border-left: 3px solid var(--ok); }
-.yes { color: var(--ok); font-variation-settings: "wdth" 100, "wght" 600; }
-.no  { color: var(--muted); }
-.part { color: var(--warn); font-variation-settings: "wdth" 100, "wght" 600; }
-.n { font-family: var(--mono); font-size: 0.8rem; }
-
-/* ------------------------------------------------------------------
-   The loop: a formula bar you can read
-   ------------------------------------------------------------------ */
-.loopbar {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--rule-strong);
-  background: var(--surface);
-  margin-bottom: 1.4rem;
-  max-width: 56rem;
-}
-.loopbar__ref {
-  flex: none;
-  display: flex;
-  align-items: flex-start;
-  padding: 0.72rem 0.75rem 0;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--muted);
-  border-right: 1px solid var(--rule);
-  background: var(--code-bg);
-}
-.loopbar__fx {
-  flex: none;
-  display: flex;
-  align-items: flex-start;
-  padding: 0.6rem 0.6rem 0;
-  font-family: var(--serif);
-  font-style: italic;
-  color: var(--muted);
-  border-right: 1px solid var(--rule);
-}
-.loopbar__f {
-  flex: 1 1 auto;
-  padding: 0.7rem 0.8rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  line-height: 1.7;
-  white-space: pre;
-  overflow-x: auto;
-  color: var(--ink);
-}
-.loopbar__f b { font-weight: 600; color: var(--link); }
-
-.steps { list-style: none; margin: 0 0 1.4rem; padding: 0; max-width: 56rem; border-top: 1px solid var(--rule); }
-.steps li {
-  display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr);
-  gap: 0.9rem;
-  padding: 0.62rem 0.5rem;
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--serif);
-  font-size: 0.97rem;
-  line-height: 1.5;
-}
-.steps li:nth-child(even) { background: var(--band2); }
-.steps li:nth-child(odd)  { background: var(--band1); }
-.steps b { font-family: var(--mono); font-size: 0.8rem; font-weight: 500; color: var(--ink); }
-.steps span:first-child {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--muted);
-  text-align: right;
-  padding-top: 0.2rem;
-}
-
-/* ------------------------------------------------------------------
-   A refusal, printed the way the tool prints it
-   ------------------------------------------------------------------ */
-.refusal {
-  border: 1px solid var(--rule-strong);
-  border-left: 3px solid var(--flag);
-  background: var(--surface);
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  line-height: 1.65;
-  padding: 0.85rem 1rem;
-  margin: 0 0 1rem;
-  max-width: 56rem;
-  overflow-x: auto;
-  white-space: pre;
-}
-.refusal .k { color: var(--muted); }
-.refusal .v { color: var(--ink); }
-.refusal .c { color: var(--flag); }
-
-/* ------------------------------------------------------------------
-   Two-column prose blocks
-   ------------------------------------------------------------------ */
-.cols {
-  display: grid;
-  gap: 1.9rem clamp(1.6rem, 4vw, 3.2rem);
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 62rem;
-}
-@media (min-width: 820px) { .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.cols p { font-size: 1rem; }
-.cols > div { border-top: 1px solid var(--rule); padding-top: 0.85rem; }
-
-.lead { max-width: var(--measure); margin-bottom: 1.7rem; }
-
-/* Plain lists */
-.plain { margin: 0 0 1.1rem; padding-left: 1.05rem; max-width: var(--measure); }
-.plain li { margin-bottom: 0.5rem; }
-.plain li::marker { color: var(--rule-strong); }
-
-.rules { list-style: none; margin: 0; padding: 0; max-width: 62rem; }
-.rules li {
-  border-top: 1px solid var(--rule);
-  padding: 0.7rem 0;
-  display: grid;
-  gap: 0.15rem 1rem;
-  grid-template-columns: minmax(0, 1fr);
-}
-@media (min-width: 760px) { .rules li { grid-template-columns: 11.5rem minmax(0, 1fr); } }
-.rules code { font-size: 0.78rem; color: var(--ink); }
-.rules p { font-size: 0.97rem; margin: 0; }
-
-/* ------------------------------------------------------------------
-   Footer
-   ------------------------------------------------------------------ */
-footer {
-  border-top: 1px solid var(--rule-strong);
-  padding: 2rem var(--pad-x) 3rem calc(var(--gutter) + var(--pad-x));
-  font-family: var(--sans);
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-footer p { max-width: 60ch; margin-bottom: 0.5rem; }
-
-@media (max-width: 760px) {
-  footer { padding-left: var(--pad-x); }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .copy, .themebtn, .bar nav a { transition: color 120ms ease, border-color 120ms ease; }
-}
+  @media (max-width: 900px) {
+    .hero-grid, .compare, .four, .two, .section-head { grid-template-columns: 1fr; }
+    .sheet table { min-width: 520px; }
+    .facts { grid-template-columns: 1fr 1fr 1fr; }
+    section { padding: 44px 0; }
+  }
+  @media (max-width: 560px) {
+    .facts { grid-template-columns: 1fr; }
+    .facts div { border-left: 0; border-top: 1px solid var(--line-2); }
+    .facts div:first-child { border-top: 0; }
+    .toolgrid { grid-template-columns: 1fr; }
+    .bar nav a.hide-sm { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
-
 <body>
+<div class="wrap">
+  <div class="bar">
+    <a class="brand" href="#top"><b>gsheets-pro</b><span>for Claude Code</span></a>
+    <nav>
+      <a href="#compare">Compare</a>
+      <a href="#why" class="hide-sm">Why this shape</a>
+      <a href="#limits" class="hide-sm">Limits</a>
+      <a href="#install" class="btn small">Install</a>
+      <button class="btn small" id="theme" type="button" aria-label="Toggle dark theme">Dark</button>
+    </nav>
+  </div>
+</div>
 
-<header class="bar">
-  <span class="namebox" id="namebox">A1</span>
-  <span class="fx" aria-hidden="true">fx</span>
-  <nav aria-label="Sections">
-    <a href="#tools">Tools</a>
-    <a href="#verify">Verify</a>
-    <a href="#sharing">Sharing</a>
-    <a href="#compare">Compare</a>
-    <a href="#limits">Limits</a>
-    <a href="#install">Install</a>
-  </nav>
-  <button class="themebtn" id="themebtn" type="button">Dark</button>
-</header>
-
-<main>
-
-<!-- ============================================================ 1 -->
-<section class="row row--hero" id="top" data-ref="A1">
-  <div class="row__n" aria-hidden="true">1</div>
-  <div class="row__body">
-    <p class="prerelease">Pre-release. v0.1 is not out yet.</p>
-    <h1>gsheets-pro</h1>
-    <p class="deck">Google Sheets for Claude Code, built for an agent that can already think.</p>
-
-    <div class="hero__grid">
-      <div>
-        <p>Thirteen tools it can compose, results it can reason over, refusals that name the fix, and a way to look at what it just built. Every write comes back with an error gate read straight from the API. A lint finds what went wrong and hands back the call that repairs it. A render turns a tab into a PNG so Claude can see its own work.</p>
-        <p>Nobody else in this landscape verifies, and nobody else renders.</p>
-
-        <div class="cmds">
-          <div class="cmd">
-            <span class="cmd__p" aria-hidden="true">$</span>
-            <span class="cmd__t">claude plugin marketplace add jordfan/gsheets-pro</span>
-            <button class="copy" type="button" data-copy="claude plugin marketplace add jordfan/gsheets-pro">Copy</button>
-          </div>
-          <div class="cmd">
-            <span class="cmd__p" aria-hidden="true">$</span>
-            <span class="cmd__t">claude plugin install gsheets-pro@gsheets-pro</span>
-            <button class="copy" type="button" data-copy="claude plugin install gsheets-pro@gsheets-pro">Copy</button>
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <span class="pre">pre-release · v0.1 not tagged yet</span>
+          <h1>Google Sheets for an agent that can already think.</h1>
+          <p class="lede">Thirteen tools that build spreadsheets a colleague would recognize as their own, check the work through the API, render it so the agent can look, and refuse to wreck a sheet other people edit.</p>
+          <div class="actions">
+            <a class="btn primary" href="#install">Install</a>
+            <a class="btn" href="#compare">See the comparison</a>
+            <a class="btn" href="https://github.com/jordfan/gsheets-pro">GitHub</a>
           </div>
         </div>
-        <p class="note">On a laptop, add <code>gsheets-pro-local@gsheets-pro</code> for the bundled stdio server. Source and issues live at <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a>. MIT.</p>
-      </div>
-
-      <figure>
-        <div class="render">
-          <svg viewBox="0 0 706 300" role="img" aria-labelledby="rtitle rdesc">
-            <title id="rtitle">A spreadsheet tab produced by gsheets-pro</title>
-            <desc id="rdesc">A roster tab with a merged title banner, a dark frozen header row, banded data rows, right-aligned currency, a status column, and a check column flagging one short term.</desc>
-
-            <rect x="0" y="0" width="706" height="300" fill="var(--surface)"/>
-
-            <!-- column letters -->
-            <g class="sv-col">
-              <text x="96" y="14" text-anchor="middle">A</text>
-              <text x="196" y="14" text-anchor="middle">B</text>
-              <text x="290" y="14" text-anchor="middle">C</text>
-              <text x="397" y="14" text-anchor="middle">D</text>
-              <text x="466" y="14" text-anchor="middle">E</text>
-              <text x="546" y="14" text-anchor="middle">F</text>
-              <text x="647" y="14" text-anchor="middle">G</text>
-            </g>
-            <line x1="0" y1="19" x2="706" y2="19" stroke="var(--rule-strong)" stroke-width="1"/>
-
-            <!-- row numbers -->
-            <g class="sv-col">
-              <text x="19" y="40" text-anchor="end">1</text>
-              <text x="19" y="69" text-anchor="end">2</text>
-              <text x="19" y="92" text-anchor="end">3</text>
-              <text x="19" y="116" text-anchor="end">4</text>
-              <text x="19" y="140" text-anchor="end">5</text>
-              <text x="19" y="164" text-anchor="end">6</text>
-              <text x="19" y="188" text-anchor="end">7</text>
-              <text x="19" y="212" text-anchor="end">8</text>
-              <text x="19" y="236" text-anchor="end">9</text>
-              <text x="19" y="260" text-anchor="end">10</text>
-              <text x="19" y="286" text-anchor="end">11</text>
-            </g>
-            <line x1="25" y1="0" x2="25" y2="300" stroke="var(--rule-strong)" stroke-width="1"/>
-
-            <!-- merged title banner, row 1 -->
-            <text class="sv-title" x="34" y="41">Enrichment Roster, Fall term</text>
-
-            <!-- header row 2 -->
-            <rect x="25" y="50" width="681" height="26" fill="var(--header-fill)"/>
-            <g class="sv-head">
-              <text x="34" y="67">Student</text>
-              <text x="200" y="67" text-anchor="end">Grade</text>
-              <text x="232" y="67">Class</text>
-              <text x="420" y="67" text-anchor="end">Sessions</text>
-              <text x="500" y="67" text-anchor="end">Fee</text>
-              <text x="512" y="67">Status</text>
-              <text x="604" y="67">Check</text>
-            </g>
-
-            <!-- banded data rows -->
-            <rect x="25" y="76"  width="681" height="24" fill="var(--band1)"/>
-            <rect x="25" y="100" width="681" height="24" fill="var(--band2)"/>
-            <rect x="25" y="124" width="681" height="24" fill="var(--band1)"/>
-            <rect x="25" y="148" width="681" height="24" fill="var(--band2)"/>
-            <rect x="25" y="172" width="681" height="24" fill="var(--band1)"/>
-            <rect x="25" y="196" width="681" height="24" fill="var(--band2)"/>
-            <rect x="25" y="220" width="681" height="24" fill="var(--band1)"/>
-            <rect x="25" y="244" width="681" height="24" fill="var(--band2)"/>
-
-            <g class="sv-cell">
-              <text x="34" y="92">Rosalind Okafor</text>
-              <text x="34" y="116">Theo Marchetti</text>
-              <text x="34" y="140">June Ainsley</text>
-              <text x="34" y="164">Mateo Rivas</text>
-              <text x="34" y="188">Priya Chandran</text>
-              <text x="34" y="212">Wren Halloway</text>
-              <text x="34" y="236">Otis Beaumont</text>
-              <text x="34" y="260">Nadia Whitlock</text>
-
-              <text x="232" y="92">Clay Studio</text>
-              <text x="232" y="116">Chess Club</text>
-              <text x="232" y="140">Stagecraft</text>
-              <text x="232" y="164">Clay Studio</text>
-              <text x="232" y="188">Movement</text>
-              <text x="232" y="212">Stagecraft</text>
-              <text x="232" y="236">Chess Club</text>
-              <text x="232" y="260">Movement</text>
-            </g>
-
-            <g class="sv-num">
-              <text x="200" y="92"  text-anchor="end">3</text>
-              <text x="200" y="116" text-anchor="end">1</text>
-              <text x="200" y="140" text-anchor="end">4</text>
-              <text x="200" y="164" text-anchor="end">2</text>
-              <text x="200" y="188" text-anchor="end">K</text>
-              <text x="200" y="212" text-anchor="end">3</text>
-              <text x="200" y="236" text-anchor="end">4</text>
-              <text x="200" y="260" text-anchor="end">1</text>
-
-              <text x="420" y="92"  text-anchor="end">8</text>
-              <text x="420" y="116" text-anchor="end">8</text>
-              <text x="420" y="140" text-anchor="end">6</text>
-              <text x="420" y="164" text-anchor="end">8</text>
-              <text x="420" y="188" text-anchor="end">8</text>
-              <text x="420" y="212" text-anchor="end">6</text>
-              <text x="420" y="236" text-anchor="end">7</text>
-              <text x="420" y="260" text-anchor="end">8</text>
-
-              <text x="500" y="92"  text-anchor="end">$450</text>
-              <text x="500" y="116" text-anchor="end">$450</text>
-              <text x="500" y="140" text-anchor="end">$340</text>
-              <text x="500" y="164" text-anchor="end">$450</text>
-              <text x="500" y="188" text-anchor="end">$450</text>
-              <text x="500" y="212" text-anchor="end">$340</text>
-              <text x="500" y="236" text-anchor="end">$400</text>
-              <text x="500" y="260" text-anchor="end">$450</text>
-            </g>
-
-            <g class="sv-cell">
-              <text x="512" y="92">Confirmed</text>
-              <text x="512" y="116">Confirmed</text>
-              <text x="512" y="140">Waitlist</text>
-              <text x="512" y="164">Confirmed</text>
-              <text x="512" y="188">Confirmed</text>
-              <text x="512" y="212">Waitlist</text>
-              <text x="512" y="236">Confirmed</text>
-              <text x="512" y="260">Confirmed</text>
-              <text class="sv-flag" x="604" y="236">Short term</text>
-            </g>
-
-            <!-- source note, row 11 -->
-            <text class="sv-note" x="34" y="286">Fee = Settings!Rate_per_session * Sessions, rounded to 25.</text>
-
-            <!-- gridlines -->
-            <g stroke="var(--rule)" stroke-width="1">
-              <line x1="25" y1="76"  x2="706" y2="76"/>
-              <line x1="25" y1="100" x2="706" y2="100"/>
-              <line x1="25" y1="124" x2="706" y2="124"/>
-              <line x1="25" y1="148" x2="706" y2="148"/>
-              <line x1="25" y1="172" x2="706" y2="172"/>
-              <line x1="25" y1="196" x2="706" y2="196"/>
-              <line x1="25" y1="220" x2="706" y2="220"/>
-              <line x1="25" y1="244" x2="706" y2="244"/>
-              <line x1="25" y1="268" x2="706" y2="268"/>
-              <line x1="170" y1="50" x2="170" y2="268"/>
-              <line x1="222" y1="50" x2="222" y2="268"/>
-              <line x1="360" y1="50" x2="360" y2="268"/>
-              <line x1="428" y1="50" x2="428" y2="268"/>
-              <line x1="508" y1="50" x2="508" y2="268"/>
-              <line x1="596" y1="50" x2="596" y2="268"/>
-            </g>
-            <rect x="25" y="19" width="681" height="249" fill="none" stroke="var(--rule-strong)" stroke-width="1"/>
-          </svg>
+        <div class="facts" aria-label="At a glance">
+          <div><b>13</b><span>tools, replacing 44 verb-shaped ones</span></div>
+          <div><b>2</b><span>ways to verify: a lint and a render</span></div>
+          <div><b>6</b><span>API behaviors tested live before the design was fixed; two catch silent data loss</span></div>
         </div>
-        <figcaption>A tab of the kind the tools build, drawn here with invented data. The status column is plain text on purpose: a render never draws a dropdown as a pill, so the lint is what tells you the rule is still there.</figcaption>
-      </figure>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 2 -->
-<section class="row" id="tools" data-ref="A2">
-  <div class="row__n" aria-hidden="true">2</div>
-  <div class="row__body">
-    <h2>Thirteen tools, shaped like tasks</h2>
-    <div class="lead">
-      <p>A capable agent does not need a hundred verbs. It needs a small surface it can compose, results rich enough to reason over, and errors that teach the fix rather than just failing.</p>
-      <p>So everything here takes sheet names and A1 ranges, and the server resolves the ids and grid ranges. Every response is prose the model reads plus structured data it can branch on. Every error carries a code, a message, and a hint. Every call sends exactly one batch update, backs off on a rate limit, and builds its field mask from the arguments you actually passed.</p>
-    </div>
-
-    <div class="tablewrap">
-      <table class="t-tools">
-        <thead>
-          <tr><th scope="col">Tool</th><th scope="col">What it does</th></tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">sheets_open</th><td>First call of every session. Tabs, native Tables, named ranges, protections, the detected preset, and the contract saying which columns are yours to write.</td></tr>
-          <tr><th scope="row">sheets_read</th><td>Values, formulas, or both, with formats, notes, and validation. Paginated, and every record carries its own row number.</td></tr>
-          <tr><th scope="row">sheets_write</th><td>The only value mutation: range, append, upsert, fill, log. Refuses to replace a cell that currently holds a formula.</td></tr>
-          <tr><th scope="row">sheets_table</th><td>Create, adopt, update, or delete a native Table: typed columns, dropdowns, header notes, help text, banding, frozen header.</td></tr>
-          <tr><th scope="row">sheets_settings</th><td>An inputs block where every number gets a named range and a note citing where it came from.</td></tr>
-          <tr><th scope="row">sheets_style</th><td>One style object on one range, or a preset compiled into the spreadsheet's own theme so Format &gt; Theme stays the human's knob.</td></tr>
-          <tr><th scope="row">sheets_validation</th><td>Dropdowns, checkboxes, dates, numbers, text, and custom rules, each with help text that says what a valid entry looks like.</td></tr>
-          <tr><th scope="row">sheets_conditional_format</th><td>Boolean and gradient rules, addressed by fingerprint rather than by index, so a rule someone reordered is still findable.</td></tr>
-          <tr><th scope="row">sheets_structure</th><td>Tabs, rows, columns, sorting, find and replace, grouping, protection. Destructive actions need a confirmation naming the sheet.</td></tr>
-          <tr><th scope="row">sheets_find</th><td>The Drive side: search, share, and copy spreadsheets. Says which scope it needs instead of failing opaquely.</td></tr>
-          <tr><th scope="row">sheets_check</th><td>The lint. Seven rules in v1, each finding carrying a severity and a fix string naming the call that resolves it.</td></tr>
-          <tr><th scope="row">sheets_render</th><td>One tab or range to a PNG: a file path on your machine, or a short-lived signed URL when the server is hosted.</td></tr>
-          <tr><th scope="row">sheets_batch</th><td>The escape hatch to all 69 batch update request types, with sheet names and A1 ranges resolved for you first.</td></tr>
-        </tbody>
-        <caption><span>A fourteenth tool, a declarative one-call workbook builder, is v1.1. Today a tracker takes four calls.</span></caption>
-      </table>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 3 -->
-<section class="row" id="verify" data-ref="A3">
-  <div class="row__n" aria-hidden="true">3</div>
-  <div class="row__body">
-    <h2>An agent that can see its own work</h2>
-    <div class="lead">
-      <p>This is the part nobody else ships. Every write ends with a masked read over exactly the cells it touched and returns a check keyed on the Sheets error types, so a broken reference is caught by the call that caused it rather than by a person a week later. Because it reads the API's own error enum, it does not care what language the spreadsheet is in.</p>
-    </div>
-
-    <div class="loopbar">
-      <span class="loopbar__ref">A1</span>
-      <span class="loopbar__fx" aria-hidden="true">fx</span>
-      <code class="loopbar__f">=LET(
-  sheet,  <b>sheets_open</b>(url),
-  built,  <b>sheets_table</b>(<b>sheets_style</b>(sheet, preset)),
-  filled, <b>sheets_write</b>(built, mode: "fill"),
-  <b>sheets_check</b>(filled)
-)</code>
-    </div>
-
-    <ol class="steps">
-      <li><span>1</span><span><b>sheets_open</b> first, always. Never write to a spreadsheet you have not opened this session.</span></li>
-      <li><span>2</span><span>Plan before you call. A plan you can state in three sentences produces a sheet someone can read.</span></li>
-      <li><span>3</span><span>Build in order: theme, settings, Table, then the formula columns by fill.</span></li>
-      <li><span>4</span><span>Read the check on every write. Errors found means stop and fix, not continue and hope.</span></li>
-      <li><span>5</span><span><b>sheets_check</b> before calling it done. Clear every error. Justify any warning you leave.</span></li>
-      <li><span>6</span><span><b>sheets_render</b> once, then look at it. One fix pass, not an open-ended polish loop.</span></li>
-    </ol>
-
-    <div class="cols">
-      <div>
-        <h3>The lint</h3>
-        <p>Seven rules in v1: a formula error, a merge inside a data region, a missing frozen header, a write that landed in somebody else's column, a key column gone blank or duplicated, the sheet's own check column raising a flag, and text that does not read as a colleague's work. Each finding carries the call that fixes it.</p>
       </div>
-      <div>
-        <h3>The render</h3>
-        <p>A tab becomes a PNG the model actually looks at. Fills, fonts, borders, banding, merges, column widths and conditional formats all paint correctly, and a frozen header repeats on every page. Truncated columns and unreadable contrast are things you can only catch by looking.</p>
-      </div>
-      <div>
-        <h3>What the lint cannot tell you</h3>
-        <p>A clean lint proves your formulas evaluate. It does not prove they are right. An off-by-one range gives you a green check and wrong numbers all the way down. The skill says so in the same paragraph where it tells Claude to run the lint.</p>
-      </div>
-      <div>
-        <h3>A house style it absorbs once</h3>
-        <p>A skill carries ten rules with the reasoning behind each, and a hook injects a short card of it on the first Sheets call of a session. The model learns the conventions once rather than being told them in every prompt.</p>
+
+      <div class="compare" aria-label="The same roster, two ways">
+        <figure class="panel" style="margin:0">
+          <header><h3>The same roster, from a values-only server</h3><span class="eyebrow">before</span></header>
+          <div class="fx"><span class="ref">F10</span><i>fx</i><span>8190</span></div>
+          <div class="sheet">
+            <table class="before" aria-label="A roster as a values-only server leaves it">
+              <thead><tr><th class="rn"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th></tr></thead>
+              <tbody>
+                <tr><td class="rn">1</td><th>Student</th><th>grade</th><th>Class</th><th>Sessions</th><th>status</th><th>Fee</th></tr>
+                <tr><td class="rn">2</td><td>Rosalind Okafor</td><td>3</td><td>Clay Studio</td><td class="num">8</td><td>Confirmed</td><td class="num">450</td></tr>
+                <tr><td class="rn">3</td><td class="clip">Theo Marchetti-Baumann</td><td>1</td><td>Chess Club</td><td class="num">8</td><td>confirmed</td><td class="num">450</td></tr>
+                <tr><td class="rn">4</td><td>June Ainsley</td><td>4</td><td>Stagecraft</td><td class="num">6</td><td>Waitlist</td><td class="num">340</td></tr>
+                <tr><td class="rn">5</td><td>Mateo Rivas</td><td>2</td><td>Clay Studio</td><td class="num">8</td><td>CONF</td><td class="num">450</td></tr>
+                <tr><td class="rn">6</td><td>Priya Chandran</td><td>K</td><td>Movement</td><td class="num">8</td><td>Confirmed</td><td class="num ref">#REF!</td></tr>
+                <tr><td class="rn">7</td><td>Wren Halloway</td><td>3</td><td>Stagecraft</td><td class="num">6</td><td>waitlist</td><td class="num">340</td></tr>
+                <tr><td class="rn">8</td><td>Otis Beaumont</td><td>4</td><td>Chess Club</td><td class="num">7</td><td>Confirmed</td><td class="num">400</td></tr>
+                <tr><td class="rn">9</td><td>Nadia Whitlock</td><td>1</td><td>Movement</td><td class="num">8</td><td>Confirmed</td><td class="num">450</td></tr>
+                <tr><td class="rn">10</td><td>Total</td><td></td><td></td><td></td><td></td><td class="num">8190</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption class="calls">
+            <b>update_cells</b>(A1:F10)<br>
+            <span class="bad">nothing checked</span> · a typed total · a #REF! nobody sees · three spellings of one status
+          </figcaption>
+        </figure>
+
+        <figure class="panel" style="margin:0">
+          <header><h3>The same roster, from gsheets-pro</h3><span class="eyebrow">after</span></header>
+          <div class="fx"><span class="ref">G4</span><i>fx</i><span>=Roster[Sessions] * Settings!Rate_per_session</span></div>
+          <div class="sheet">
+            <table class="after" aria-label="A roster as gsheets-pro builds it">
+              <thead><tr class="frozen"><th class="rn"></th><th>Student</th><th>Grade</th><th>Class</th><th class="num">Sessions</th><th>Status</th><th class="num">Fee</th><th>Check</th></tr></thead>
+              <tbody>
+                <tr><td class="rn">2</td><td>Rosalind Okafor</td><td>3</td><td>Clay Studio</td><td class="num">8</td><td class="ok">Confirmed</td><td class="num">$450</td><td></td></tr>
+                <tr><td class="rn">3</td><td>Theo Marchetti-Baumann</td><td>1</td><td>Chess Club</td><td class="num">8</td><td class="ok">Confirmed</td><td class="num">$450</td><td></td></tr>
+                <tr><td class="rn">4</td><td>June Ainsley</td><td>4</td><td>Stagecraft</td><td class="num">6</td><td class="warn">Waitlist</td><td class="num">$340</td><td></td></tr>
+                <tr><td class="rn">5</td><td>Mateo Rivas</td><td>2</td><td>Clay Studio</td><td class="num">8</td><td class="ok">Confirmed</td><td class="num">$450</td><td></td></tr>
+                <tr><td class="rn">6</td><td>Priya Chandran</td><td>K</td><td>Movement</td><td class="num">8</td><td class="ok">Confirmed</td><td class="num">$450</td><td></td></tr>
+                <tr><td class="rn">7</td><td>Wren Halloway</td><td>3</td><td>Stagecraft</td><td class="num">6</td><td class="warn">Waitlist</td><td class="num">$340</td><td></td></tr>
+                <tr><td class="rn">8</td><td>Otis Beaumont</td><td>4</td><td>Chess Club</td><td class="num">7</td><td class="ok">Confirmed</td><td class="num">$400</td><td class="flag">Short term</td></tr>
+                <tr><td class="rn">9</td><td>Nadia Whitlock</td><td>1</td><td>Movement</td><td class="num">8</td><td class="ok">Confirmed</td><td class="num">$450</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption class="calls">
+            <b>sheets_style</b>{preset} → <b>sheets_settings</b> → <b>sheets_table</b> create → <b>sheets_write</b> fill → <b>sheets_check</b><br>
+            <span class="good">check: success</span> · native Table, frozen header, typed columns · fee is a formula on a named rate · status is a dropdown · one flag, from the sheet's own Check column
+          </figcaption>
+        </figure>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ============================================================ 4 -->
-<section class="row" id="craft" data-ref="A4">
-  <div class="row__n" aria-hidden="true">4</div>
-  <div class="row__body">
-    <h2>Sheets a person would recognize as their own</h2>
-    <div class="lead">
-      <p>Formatting is not decoration here. Each of these is the thing that keeps a spreadsheet correct three months after it was built, which is why they are tools rather than advice.</p>
-    </div>
-    <ul class="rules">
-      <li>
-        <code>native Tables</code>
-        <p>Tabular data is a real Table, not a hand-formatted range. Typed columns, dropdowns, banding and filters come with it, and structured references survive a colleague inserting a row above your formula.</p>
-      </li>
-      <li>
-        <code>themes</code>
-        <p>A preset compiles to the spreadsheet's own nine-slot theme, so a color written as a theme slot re-skins when someone changes Format &gt; Theme. Three presets ship. The loader rejects a palette that fails 4.5:1 contrast.</p>
-      </li>
-      <li>
-        <code>settings block</code>
-        <p>Every input gets its own cell, a named range, and a note saying where the number came from. A rate typed inside a formula is invisible the day it changes.</p>
-      </li>
-      <li>
-        <code>documentation</code>
-        <p>A note on each header cell says what the column means and its units. Validation help text says what a valid entry looks like. Both are written to read as if a colleague left them for another colleague.</p>
-      </li>
-      <li>
-        <code>formulas</code>
-        <p>They pass through byte for byte, always. The house style prefers a helper column to a formula nobody can read, XLOOKUP with its missing value argument, IFNA over a blanket IFERROR, and no numeric literal that could ever change.</p>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<!-- ============================================================ 5 -->
-<section class="row" id="sharing" data-ref="A5">
-  <div class="row__n" aria-hidden="true">5</div>
-  <div class="row__body">
-    <h2>Sharing a spreadsheet with people who never saw your prompt</h2>
-    <div class="lead">
-      <p>This is the case that goes wrong quietly. A registry file in your repository names the spreadsheets other people depend on, by id, with no metadata needed anywhere: who owns them, which columns are writable, whether other formulas point at row numbers. Every session on every machine reads it and behaves accordingly.</p>
-    </div>
-
-    <div class="refusal"><span class="k">code</span>    <span class="c">"formula_cell"</span>
-<span class="k">message</span> <span class="v">"D14 currently holds a formula. Writing here would replace it."</span>
-<span class="k">hint</span>    <span class="v">"Read the cell, decide whether you meant to, then pass force."</span></div>
-
-    <div class="cols">
-      <div>
-        <h3>Formulas are never overwritten</h3>
-        <p>Every write pre-reads the range it is about to touch and refuses if a cell holds a formula, with or without a contract. Getting past it takes an explicit force, which is a decision somebody made rather than an accident.</p>
+  <section id="compare">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="eyebrow">the field, September 2026</span><h2>Every serious Sheets server stops at values. This one starts there.</h2></div>
+        <p class="lede">The most-used community server, Anthropic's own connector, and Google's official Sheets MCP all read and write cells well. None of them formats, lints, renders, or protects a sheet a person also edits.</p>
       </div>
-      <div>
-        <h3>A dropdown a person built is left alone</h3>
-        <p>Rewriting a validation rule wipes the chip colors somebody set by hand, even when the new condition is byte-identical. That was measured, not assumed, and the colors cannot be restored because the API never exposed them. Rules the plugin did not create are reported as owned by the interface and refused.</p>
+      <div class="cmp-wrap">
+        <table class="cmp">
+          <thead>
+            <tr>
+              <th scope="col">Server</th>
+              <th scope="col">Formatting</th>
+              <th scope="col">Native Tables</th>
+              <th scope="col">Themes and presets</th>
+              <th scope="col">Lint</th>
+              <th scope="col">Render</th>
+              <th scope="col">Guards for shared sheets</th>
+              <th scope="col">Cloud sessions</th>
+              <th scope="col">House style</th>
+              <th scope="col">Tools</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="us">
+              <th scope="row">gsheets-pro<small>MIT, TypeScript, stdio and HTTP</small></th>
+              <td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td><span class="m y"></span></td><td class="count">13</td>
+            </tr>
+            <tr>
+              <th scope="row">xing5/mcp-google-sheets<small>the most-starred community server, about 1,000 stars</small></th>
+              <td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td class="count">19</td>
+            </tr>
+            <tr>
+              <th scope="row">Anthropic's Google Sheets connector<small>first-party, in claude.ai</small></th>
+              <td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m y"></span></td><td><span class="m n"></span></td><td class="count">20</td>
+            </tr>
+            <tr>
+              <th scope="row">Google's official Sheets MCP<small>developer preview, hosted, OAuth only</small></th>
+              <td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m y"></span></td><td><span class="m n"></span></td><td class="count">6</td>
+            </tr>
+            <tr>
+              <th scope="row">taylorwilsdon/google_workspace_mcp<small>120+ tools across 12 Workspace services; the best OAuth story in the field</small></th>
+              <td><span class="m y"></span></td><td><span class="m p"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m y"></span></td><td><span class="m n"></span></td><td class="count">~14 for Sheets</td>
+            </tr>
+            <tr>
+              <th scope="row">Hosted action catalogs<small>Composio, Zapier, Pipedream</small></th>
+              <td><span class="m p"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m n"></span></td><td><span class="m y"></span></td><td><span class="m n"></span></td><td class="count">a catalog</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="10">Read from each project's own documentation and source in September 2026. taylorwilsdon lists and appends to native Tables but does not create them, and it is the only other server with real formatting. Google's server is a developer preview with six tools. The hosted catalogs expose row-level create, read, update, and delete behind a vendor's auth broker, which suits automations and not a spreadsheet a person will maintain. "Cloud sessions" means reachable from a Claude Code cloud session, which cannot run a stdio server.</td></tr>
+          </tfoot>
+        </table>
       </div>
-      <div>
-        <h3>Destructive changes ask, or refuse</h3>
-        <p>Deleting a tab or reordering rows needs a confirmation string naming the sheet. On a spreadsheet marked as having positional rows, those are refused outright, because other people's formulas point at row numbers.</p>
+      <div class="legend"><span><i class="m y"></i>yes</span><span><i class="m p"></i>partly</span><span><i class="m n"></i>no</span></div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="section-head">
+        <div><span class="eyebrow">why this shape</span><h2>A capable agent does not need a hundred verbs. It needs feedback.</h2></div>
+        <p class="lede">Every response is prose plus structured data. Every error carries a code, a message, and a hint that names the fix. Every write ends with a read of what it touched. The four panels below are real output, not descriptions.</p>
       </div>
-      <div>
-        <h3>Nobody is watching, so it says no</h3>
-        <p>A guard hook asks on a laptop and denies in an unattended run, because an unanswered prompt in a scheduled task just stalls. The denial arrives as the tool's error text with the reason, so the model reads it and reports what it did not do.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 6 -->
-<section class="row" id="cloud" data-ref="A6">
-  <div class="row__n" aria-hidden="true">6</div>
-  <div class="row__body">
-    <h2>It runs where Claude Code runs</h2>
-    <div class="cols">
-      <div>
-        <h3>One server, two transports</h3>
-        <p>The same TypeScript server runs as a stdio process on your laptop and as a stateless HTTP service for cloud sessions and shared hosting. A Dockerfile and a hosting guide come with it, and the tool names key on their suffix, so the same skill and the same hooks work whichever prefix your session hands them.</p>
-      </div>
-      <div>
-        <h3>A vendor command for cloud repositories</h3>
-        <p>A plugin declared in a repository's settings does not install in a cloud run. That was measured, so there is a command that copies the skill, hooks and presets straight into a repository's own configuration directory, where they do load. Commit the result and a scheduled run picks it up.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 7 -->
-<section class="row" id="evidence" data-ref="A7">
-  <div class="row__n" aria-hidden="true">7</div>
-  <div class="row__body">
-    <h2>Decided by measurement, not by reading the docs</h2>
-    <div class="lead">
-      <p>Six spikes ran against the live API before the design was fixed. Two of them found behavior that silently destroys data, which a naive implementation ships without ever noticing.</p>
-    </div>
-    <ul class="plain">
-      <li><strong>A Table append that writes an empty row.</strong> Appending cells by table id returns success and discards the values you passed. The tool uses the ordinary append against the Table's range instead.</li>
-      <li><strong>A footer color that eats a row of data.</strong> Setting a Table's footer color reads like a cosmetic setting. It converts the last data row into a footer and overwrites those cells with sum formulas, silently. Presets never send that field.</li>
-      <li><strong>Two assumptions turned out better than planned.</strong> The contract metadata survives Make a copy intact, and the render redirect needs no bearer re-attachment, which removed hand-rolled redirect handling from the design.</li>
-    </ul>
-    <p>801 offline tests run in about a second and need no credentials. A separate live suite runs against a disposable spreadsheet and skips itself when there is not one.</p>
-  </div>
-</section>
-
-<!-- ============================================================ 8 -->
-<section class="row" id="compare" data-ref="A8">
-  <div class="row__n" aria-hidden="true">8</div>
-  <div class="row__body">
-    <h2>Compared with what else is out there</h2>
-    <div class="lead">
-      <p>The Sheets tooling landscape is good at values and rows. It is nearly empty on formatting, and completely empty on verification. Two of these are worth your attention for reasons this project does not cover: the Workspace server below has the best authentication story in the ecosystem and was the closest thing to formatting before this, and Google's own server needs no setup at all.</p>
-    </div>
-
-    <div class="tablewrap">
-      <table class="t-cmp">
-        <thead>
-          <tr>
-            <th scope="col">Project</th>
-            <th scope="col">Tools</th>
-            <th scope="col">Formatting</th>
-            <th scope="col">Native Tables</th>
-            <th scope="col">Lint and render</th>
-            <th scope="col">Human guards</th>
-            <th scope="col">Other Workspace apps</th>
-            <th scope="col">Setup</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="mine">
-            <th scope="row">gsheets-pro<span class="sub">TypeScript, stdio and HTTP, MIT</span></th>
-            <td class="n">13</td>
-            <td class="yes">Yes, with themes and presets</td>
-            <td class="yes">Create, adopt, typed columns</td>
-            <td class="yes">Both</td>
-            <td class="yes">Registry, formula guard, interface-owned rules</td>
-            <td class="no">None. Sheets only</td>
-            <td class="no">Your own OAuth client, about 25 minutes</td>
-          </tr>
-          <tr>
-            <th scope="row">taylorwilsdon/google_workspace_mcp<span class="sub">120+ tools across 12 services</span></th>
-            <td class="n">~14 for Sheets</td>
-            <td class="yes">Yes, including conditional</td>
-            <td class="part">List and append only</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="yes">12 services</td>
-            <td class="yes">Best in the ecosystem</td>
-          </tr>
-          <tr>
-            <th scope="row">xing5/mcp-google-sheets<span class="sub">Python, stdio, ~1,000 stars</span></th>
-            <td class="n">19</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">None</td>
-            <td class="no">Your own credentials</td>
-          </tr>
-          <tr>
-            <th scope="row">Anthropic's Google Sheets connector<span class="sub">First party</span></th>
-            <td class="n">~20</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="part">Separate connectors</td>
-            <td class="yes">Managed, sign in</td>
-          </tr>
-          <tr>
-            <th scope="row">Google's Sheets MCP server<span class="sub">Developer preview, hosted</span></th>
-            <td class="n">6</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">None</td>
-            <td class="yes">Hosted, OAuth only</td>
-          </tr>
-          <tr>
-            <th scope="row">Composio, Zapier, Pipedream<span class="sub">Hosted action catalogs</span></th>
-            <td class="n">Catalog</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="no">No</td>
-            <td class="yes">Hundreds of apps</td>
-            <td class="yes">Vendor auth broker</td>
-          </tr>
-        </tbody>
-        <caption><span>As of September 2026. Counts are what each project's own documentation states. The hosted catalogs work on a row-level create, read, update and delete model behind a vendor's auth broker, which is a good fit for automations and a poor one for building a spreadsheet a person will maintain.</span></caption>
-      </table>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 9 -->
-<section class="row" id="limits" data-ref="A9">
-  <div class="row__n" aria-hidden="true">9</div>
-  <div class="row__body">
-    <h2>What it cannot do</h2>
-    <div class="lead">
-      <p>Most of these are limits of the Sheets API rather than gaps in this project's coverage of it, and no amount of future work closes them. They are here because you should know them before you install, not after.</p>
-    </div>
-    <ul class="plain">
-      <li><strong>Named functions and Apps Script are unreachable.</strong> Neither has an API. Use a LET inside the formula, or a helper column.</li>
-      <li><strong>Dropdown chip colors cannot be set or read,</strong> in either direction. The colored pill in the interface is invisible to every API call.</li>
-      <li><strong>A render never shows a dropdown as a pill.</strong> An intact rule created through the API looks pixel for pixel identical to a cell with no rule at all, so the lint is the authority on validation, not the picture.</li>
-      <li><strong>Threaded comments are out of reach.</strong> They live in a different API, so a question a colleague left in one is not something the plugin can see. It writes cell notes instead.</li>
-      <li><strong>The export endpoint a render uses is undocumented.</strong> It is fenced behind a dedicated tool for exactly that reason, and rendering needs poppler installed on whichever machine runs the server.</li>
-      <li><strong>Setup takes your own Google Cloud OAuth client,</strong> about twenty-five minutes the first time. You have to click Publish during setup, or the refresh token expires after seven days and the whole thing quietly stops working.</li>
-      <li><strong>Charts, pivot tables, slicers and filter views go through the raw escape hatch,</strong> which reaches them but applies no preset awareness. A chart built that way looks like the Sheets default.</li>
-      <li><strong>The one-call workbook builder and the formula pretty-printer are v1.1.</strong> Today a tracker is four calls, and formulas pass through exactly as written.</li>
-    </ul>
-  </div>
-</section>
-
-<!-- ============================================================ 10 -->
-<section class="row" id="install" data-ref="A10">
-  <div class="row__n" aria-hidden="true">10</div>
-  <div class="row__body">
-    <h2>Install it</h2>
-    <div class="lead">
-      <p>Two lines in Claude Code. The first plugin brings the house style, the verify loop conventions, the presets and the guards. On a laptop, add the second for the bundled server that runs over stdio; for a cloud session or a team, run the same server over HTTP and point a connector at it.</p>
-    </div>
-
-    <div class="cmds">
-      <div class="cmd">
-        <span class="cmd__p" aria-hidden="true">$</span>
-        <span class="cmd__t">claude plugin marketplace add jordfan/gsheets-pro</span>
-        <button class="copy" type="button" data-copy="claude plugin marketplace add jordfan/gsheets-pro">Copy</button>
-      </div>
-      <div class="cmd">
-        <span class="cmd__p" aria-hidden="true">$</span>
-        <span class="cmd__t">claude plugin install gsheets-pro@gsheets-pro</span>
-        <button class="copy" type="button" data-copy="claude plugin install gsheets-pro@gsheets-pro">Copy</button>
-      </div>
-      <div class="cmd">
-        <span class="cmd__p" aria-hidden="true">$</span>
-        <span class="cmd__t">claude plugin install gsheets-pro-local@gsheets-pro</span>
-        <button class="copy" type="button" data-copy="claude plugin install gsheets-pro-local@gsheets-pro">Copy</button>
+      <div class="four">
+        <div class="card">
+          <h3>Thirteen tools, shaped like tasks</h3>
+          <p>Sheet names and A1 ranges everywhere; the server resolves ids and grid indexes. One batch update per call, field masks built from the arguments you passed, backoff on the quota.</p>
+          <div class="toolgrid" aria-label="The thirteen tools">
+            <span>open</span><span>read</span><span>write</span><span>table</span><span>settings</span><span>style</span><span>validation</span><span>conditional_format</span><span>structure</span><span>find</span><span>batch</span><span>check</span><span>render</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Errors it can act on</h3>
+          <p>A refusal is information. This one comes back when a write would land on a formula, with or without any setup on the sheet.</p>
+<div class="artifact"><span class="k">code</span>     <span class="r">"formula_guard"</span>
+<span class="k">message</span>  "D14 currently holds a formula.
+          Writing here would replace it."
+<span class="k">hint</span>     "Read the cell, decide whether you
+          meant to, then pass force."</div>
+        </div>
+        <div class="card">
+          <h3>It can see its own work</h3>
+          <p>A lint of seven rules reads the API, not the pixels, and each finding names the call that fixes it. A render turns a tab into a PNG the agent looks at, once, before it says done.</p>
+<div class="artifact"><span class="k">rule</span>     L09  <span class="r">error</span>
+<span class="k">range</span>    'Roster'!1:1
+<span class="k">message</span>  No frozen header row.
+<span class="k">fix</span>      <span class="s">sheets_style</span> { sheet: "Roster",
+           sheet_props: { freeze_rows: 1 } }</div>
+        </div>
+        <div class="card">
+          <h3>It says no when nobody is watching</h3>
+          <p>A registry in your repository names the spreadsheets other people depend on. A hook checks it before every call, asks on a laptop, and in an unattended run denies with the reason, because an unanswered prompt just stalls.</p>
+<div class="artifact wrap-text">"sort" would change the row order of Private lessons, and the registry marks its row order as load bearing. Other people's formulas and printed copies point at those row numbers. Append at the bottom instead, and leave existing rows where they are.</div>
+        </div>
       </div>
     </div>
+  </section>
 
-    <p class="note">This is pre-release and under active development, so it is not installable yet. Watch <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a> for v0.1. A setup command and a doctor command check your token, your scopes, how long your consent screen has been sitting in testing, and whether poppler is installed.</p>
-  </div>
-</section>
-
+  <section id="limits">
+    <div class="wrap">
+      <div class="two">
+        <div>
+          <span class="eyebrow">what it cannot do</span>
+          <h2 style="margin:8px 0 18px">Stated plainly, because the agent will find out anyway.</h2>
+          <ul class="limits">
+            <li>Named functions and Apps Script are out of reach of the Sheets API.</li>
+            <li>Dropdown chip colors cannot be set or read. Rewriting a rule a person built wipes theirs, so the plugin refuses.</li>
+            <li>A render never draws a dropdown as a pill. The lint is the authority on validation.</li>
+            <li>The export used for rendering is undocumented by Google; a whole-workbook fallback exists.</li>
+            <li>Setup needs your own Google Cloud OAuth client, about 25 minutes, and you must click Publish or the token expires in seven days.</li>
+            <li>Hosted mode has no confirmation dialogs; destructive changes are refused with a reason instead.</li>
+            <li>A one-call workbook builder and a formula pretty-printer are v1.1.</li>
+          </ul>
+        </div>
+        <div id="install">
+          <span class="eyebrow">install</span>
+          <h2 style="margin:8px 0 18px">Three places it runs.</h2>
+          <div class="install">
+            <div class="step">
+              <h3>Laptop <span>stdio</span></h3>
+              <p>The skill, hooks, and presets, plus the bundled server. Then run the setup skill for the OAuth walkthrough.</p>
+              <div class="cmd"><code>claude plugin marketplace add jordfan/gsheets-pro</code><button class="btn small" type="button" data-copy="claude plugin marketplace add jordfan/gsheets-pro">Copy</button></div>
+              <div class="cmd"><code>claude plugin install gsheets-pro@gsheets-pro gsheets-pro-local@gsheets-pro</code><button class="btn small" type="button" data-copy="claude plugin install gsheets-pro@gsheets-pro gsheets-pro-local@gsheets-pro">Copy</button></div>
+            </div>
+            <div class="step">
+              <h3>A repository that runs in the cloud <span>vendored</span></h3>
+              <p>Cloud sessions load a repository's own skills and hooks but not a plugin declared in its settings. This copies them in and merges the hook entries; commit the result.</p>
+              <div class="cmd"><code>npx gsheets-pro vendor .</code><button class="btn small" type="button" data-copy="npx gsheets-pro vendor .">Copy</button></div>
+            </div>
+            <div class="step">
+              <h3>A server your team shares <span>http</span></h3>
+              <p>Stateless HTTP behind a bearer, with a Dockerfile and a hosting guide in the repo. Point a cloud session's <code>.mcp.json</code> at it.</p>
+              <div class="cmd"><code>GSHEETS_PRO_TOKEN=… npx gsheets-pro serve --http</code><button class="btn small" type="button" data-copy="GSHEETS_PRO_TOKEN=… npx gsheets-pro serve --http">Copy</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
-<footer>
-  <p>MIT licensed. <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a></p>
-  <p>Not affiliated with the GSheetsPro coaching-systems product. Google Sheets is a trademark of Google LLC.</p>
-</footer>
+<div class="wrap">
+  <footer>
+    <span>gsheets-pro · MIT · <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a></span>
+    <span>Not affiliated with the GSheetsPro coaching product. Every name on this page is invented.</span>
+  </footer>
+</div>
 
 <script>
-(function () {
-  var root = document.documentElement;
-  var btn = document.getElementById('themebtn');
-
-  function currentIsDark() {
-    var set = root.getAttribute('data-theme');
-    if (set) return set === 'dark';
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  function label() {
-    btn.textContent = currentIsDark() ? 'Light' : 'Dark';
-    btn.setAttribute('aria-label', currentIsDark() ? 'Switch to the light theme' : 'Switch to the dark theme');
-  }
-
-  try {
-    var saved = localStorage.getItem('gsp-theme');
-    if (saved === 'dark' || saved === 'light') root.setAttribute('data-theme', saved);
-  } catch (e) {}
-
-  label();
-
-  btn.addEventListener('click', function () {
-    var next = currentIsDark() ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    try { localStorage.setItem('gsp-theme', next); } catch (e) {}
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('theme');
+    function isDark() {
+      var t = root.getAttribute('data-theme');
+      if (t) return t === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    function label() { btn.textContent = isDark() ? 'Light' : 'Dark'; }
+    try { var saved = localStorage.getItem('gsp-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
     label();
-  });
-
-  // Copy buttons
-  Array.prototype.forEach.call(document.querySelectorAll('.copy'), function (b) {
-    b.addEventListener('click', function () {
-      var text = b.getAttribute('data-copy');
-      var done = function () {
-        b.textContent = 'Copied';
-        b.setAttribute('data-done', '1');
-        setTimeout(function () {
-          b.textContent = 'Copy';
-          b.removeAttribute('data-done');
-        }, 1600);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () {});
-      }
+    btn.addEventListener('click', function () {
+      var next = isDark() ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('gsp-theme', next); } catch (e) {}
+      label();
     });
-  });
-
-  // The name box reports which row of the page you are looking at.
-  var box = document.getElementById('namebox');
-  var sections = Array.prototype.slice.call(document.querySelectorAll('section[data-ref]'));
-  if (box && sections.length && 'IntersectionObserver' in window) {
-    var visible = Object.create(null);
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        visible[en.target.id] = en.isIntersecting;
+    document.querySelectorAll('[data-copy]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var text = b.getAttribute('data-copy');
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () {
+          b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1200);
+        });
       });
-      for (var i = 0; i < sections.length; i++) {
-        if (visible[sections[i].id]) {
-          box.textContent = sections[i].getAttribute('data-ref');
-          return;
-        }
-      }
-    }, { rootMargin: '-46px 0px -70% 0px', threshold: 0 });
-    sections.forEach(function (s) { io.observe(s); });
-  }
-})();
+    });
+  })();
 </script>
-
 </body>
 </html>
