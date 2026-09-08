@@ -41,7 +41,14 @@ let tools: {
   cf: ReturnType<typeof createConditionalFormatTool>;
 };
 
-const HEADERS = ["Instructor", "Vendor", "Status", "Sessions", "Fee"];
+/**
+ * Two header cells are left blank on purpose. A Table column with no header
+ * cell of its own gets a display name Sheets invents, and the export then
+ * renders the whole row bracketed, "Instructor [1]" and so on. `create` writes
+ * the names first, and the assertion below is that all five come back.
+ */
+const HEADERS = ["Instructor", "Vendor", "Status", "", ""];
+const COLUMN_NAMES = ["Instructor", "Vendor", "Status", "Sessions", "Fee"];
 const ROWS = [
   ["Nadia Okonkwo", "Bright Circuits", "Confirmed", 8, "=D2*55"],
   ["Emil Sandoval", "Bright Circuits", "Pending", 8, "=D3*55"],
@@ -128,6 +135,14 @@ suite("live: the Phase 3 tools", () => {
     const structured = result.structuredContent as Record<string, never>;
     expect(structured["table_id"]).toBeTruthy();
     expect(structured["filtered"]).toBe(true);
+
+    // Every column name is in its header cell, including the two the fixture
+    // left blank, so no column falls back to a name Sheets invents.
+    const headerRow = await ctx.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID!,
+      range: `'${TABLE_TAB}'!A1:E1`,
+    });
+    expect(headerRow.data.values?.[0]).toEqual(COLUMN_NAMES);
 
     // The formulas that were in the range before the Table have to survive it.
     const values = await ctx.sheets.spreadsheets.values.get({

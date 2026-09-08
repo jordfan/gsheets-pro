@@ -308,6 +308,7 @@ async function createTable(
   // Two round trips, on purpose: setBasicFilter binds to a tableId, and the id
   // only exists after addTable has run. Everything that does not need the id
   // rides in the second batch with it.
+  const headerRequest = headerCellRequests(columns, range, state.sheetId);
   const addRequest = {
     addTable: {
       table: {
@@ -335,12 +336,15 @@ async function createTable(
         name,
         range: gridRangeToA1(range),
         columns: columns.map((c) => ({ name: c.name, type: c.type ?? "TEXT", role: c.role ?? null })),
-        requests: [addRequest],
+        requests: [...headerRequest, addRequest],
       },
     );
   }
 
-  const added = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, [addRequest]);
+  const added = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, [
+    ...headerRequest,
+    addRequest,
+  ]);
   const tableId = tableIdFrom(added.response);
 
   const follow: unknown[] = [];
@@ -909,6 +913,49 @@ function resolveColumns(
     );
   }
   return columns;
+}
+
+/**
+ * Write the column names into the header cells, before the Table exists.
+ *
+ * `columns[].name` is described as the header text, and until this it was only
+ * ever the Table's internal `columnName`. A column whose header cell is empty
+ * when `addTable` runs gets a display name Sheets invents for it, and then the
+ * whole header row renders bracketed: `Student [1]` through `Check [10]`. The
+ * golden build seeded the six columns a person fills in, left the four computed
+ * ones to the tool, and every header in four renders carried an index.
+ *
+ * It rides in the same batch as `addTable`, ahead of it, because requests in a
+ * batchUpdate apply in order. So the headers are in place by the time the Table
+ * is created, at no extra round trip.
+ *
+ * Names go in as `stringValue` rather than through USER_ENTERED parsing. A
+ * header is a label: one reading `10/1` should stay those three characters
+ * rather than becoming a date, and one reading `2026` should stay text.
+ *
+ * `adopt` does not call this. Adopting is explicitly not repainting, so it
+ * keeps reading the row as it finds it.
+ */
+function headerCellRequests(
+  columns: ColumnSpec[],
+  range: Required<GridRange>,
+  sheetId: number,
+): unknown[] {
+  return [
+    {
+      updateCells: {
+        start: { sheetId, rowIndex: range.startRowIndex, columnIndex: range.startColumnIndex },
+        rows: [
+          {
+            values: columns.map((column) => ({
+              userEnteredValue: { stringValue: column.name },
+            })),
+          },
+        ],
+        fields: "userEnteredValue",
+      },
+    },
+  ];
 }
 
 /** Notes on the header cells, which is where a column explains itself. */

@@ -131,11 +131,79 @@ describe("sheets_table create", () => {
       range: "A1:E3",
       columns: COLUMNS,
     });
-    const notes = requestsOfKind<{ rows: Array<{ values: Array<Record<string, string>> }> }>(
-      requests(),
-      "updateCells",
-    );
-    expect(notes[0].rows[0].values[4]["note"]).toMatch(/Vendor rate times sessions/);
+    const notes = requestsOfKind<{
+      fields: string;
+      rows: Array<{ values: Array<Record<string, string>> }>;
+    }>(requests(), "updateCells").find((r) => r.fields === "note")!;
+    expect(notes.rows[0].values[4]["note"]).toMatch(/Vendor rate times sessions/);
+  });
+
+  test("writes every column name into its header cell, ahead of the Table", async () => {
+    // A column whose header cell is empty when addTable runs gets a display
+    // name Sheets invents, and the whole header row then renders bracketed:
+    // "Student [1]" through "Check [10]".
+    const blankHeaders: FakeWorkbook = {
+      tabs: [{ title: "Instructors", sheetId: 0, cells: [[], [], []] }],
+    };
+    const { table, requests, calls } = tool(blankHeaders);
+    const result = await table.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Instructors",
+      action: "create",
+      name: "Instructors",
+      range: "A1:E3",
+      columns: COLUMNS,
+    });
+    expect(isFailure(result)).toBe(false);
+
+    const first = calls.batchUpdate[0].requests;
+    const headerWrite = first[0] as {
+      updateCells: { fields: string; start: Record<string, number>; rows: Array<{ values: Array<Record<string, never>> }> };
+    };
+    expect(headerWrite.updateCells.fields).toBe("userEnteredValue");
+    expect(headerWrite.updateCells.start).toMatchObject({ rowIndex: 0, columnIndex: 0 });
+    expect(
+      headerWrite.updateCells.rows[0].values.map((v) => (v["userEnteredValue"] as { stringValue: string }).stringValue),
+    ).toEqual(["Instructor", "Vendor", "Status", "Sessions", "Fee"]);
+
+    // Order is the point: the headers have to be there before addTable runs,
+    // and requests in one batchUpdate apply in order.
+    expect(Object.keys(first[1] as object)).toEqual(["addTable"]);
+    expect(requestsOfKind(requests(), "addTable")).toHaveLength(1);
+  });
+
+  test("a header name goes in as text, so a header reading 10/1 stays 10/1", async () => {
+    const { table, calls } = tool();
+    await table.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Instructors",
+      action: "create",
+      name: "Week",
+      range: "A1:B3",
+      columns: [{ name: "10/1" }, { name: "2026" }],
+    });
+    const headerWrite = calls.batchUpdate[0].requests[0] as {
+      updateCells: { rows: Array<{ values: Array<Record<string, never>> }> };
+    };
+    expect(headerWrite.updateCells.rows[0].values.map((v) => v["userEnteredValue"])).toEqual([
+      { stringValue: "10/1" },
+      { stringValue: "2026" },
+    ]);
+  });
+
+  test("adopt writes no header cell, because adopting is not repainting", async () => {
+    const { table, calls } = tool();
+    await table.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Instructors",
+      action: "adopt",
+      range: "A1:E3",
+    });
+    const writes = calls.batchUpdate.flatMap((b) => b.requests);
+    const cellWrites = writes.filter((r) => Object.prototype.hasOwnProperty.call(r as object, "updateCells"));
+    for (const write of cellWrites) {
+      expect((write as { updateCells: { fields: string } }).updateCells.fields).toBe("note");
+    }
   });
 
   test("sends no number format for a typed column, and says why", async () => {
