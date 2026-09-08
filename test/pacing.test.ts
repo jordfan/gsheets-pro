@@ -16,6 +16,7 @@ import {
   WRAPPER_RETRIES,
 } from "./live/pacing.js";
 import type { Context } from "../src/lib/client.js";
+import { sheets as sheetsClient } from "@googleapis/sheets";
 
 /** A clock and a sleep that move together, so no test actually waits. */
 function fakeClock(start = 1_000_000) {
@@ -218,5 +219,38 @@ describe("the settings the live suites run under", () => {
 
   test("the shared bucket is readable, so a run can report what it spent", () => {
     expect(typeof callsThisWindow()).toBe("number");
+  });
+});
+
+describe("wrapping the real generated client", () => {
+  /**
+   * The fakes elsewhere in this file are plain objects, and a plain object's
+   * properties are configurable, so they cannot catch this. The generated
+   * Sheets client defines `spreadsheets` as writable: false and
+   * configurable: false, and the language forbids a proxy from answering a read
+   * of such a property with anything but the stored value. Proxying the client
+   * itself therefore threw a TypeError on the first `ctx.sheets.spreadsheets`,
+   * before any request was made, and took every live suite down with it. The
+   * pacer proxies an empty object and closes over the client instead.
+   */
+  test("reaches through a non-configurable property instead of throwing", () => {
+    const client = sheetsClient({ version: "v4" });
+    const descriptor = Object.getOwnPropertyDescriptor(client, "spreadsheets");
+    expect(descriptor?.configurable).toBe(false);
+    expect(descriptor?.writable).toBe(false);
+
+    const context = { sheets: client, drive: {} } as unknown as Context;
+    const paced = paceContext(context, { take: async () => {} });
+
+    expect(() => paced.sheets.spreadsheets).not.toThrow();
+    expect(typeof paced.sheets.spreadsheets.values.get).toBe("function");
+    expect(typeof paced.sheets.spreadsheets.developerMetadata.search).toBe("function");
+  });
+
+  test("the paced method is a wrapper, not the client's own function", () => {
+    const client = sheetsClient({ version: "v4" });
+    const context = { sheets: client, drive: {} } as unknown as Context;
+    const paced = paceContext(context, { take: async () => {} });
+    expect(paced.sheets.spreadsheets.get).not.toBe(client.spreadsheets.get);
   });
 });
