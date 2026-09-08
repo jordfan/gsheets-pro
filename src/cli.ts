@@ -53,11 +53,15 @@ const USAGE = `${SERVER_NAME} ${SERVER_VERSION}
       --dry-run                     Print what would be copied and written without doing it.
 
 Environment
-  GSHEETS_PRO_TOKEN        Bearer the HTTP transport requires on every request.
-  GSHEETS_PRO_TOKEN_FILE   Token location. Default ${tokenPath()}.
-  GSHEETS_PRO_OAUTH_CLIENT OAuth client JSON location.
-  GSHEETS_PRO_DATA_DIR     Where tokens and caches live. Default ${dataDir()}.
-  GSHEETS_PRO_REGISTRY     Registry file. Default the repo's .claude/gsheets-pro.json.
+  GSHEETS_PRO_TOKEN          Bearer the HTTP transport requires on every request.
+  GSHEETS_PRO_TOKEN_FILE     Token location. Default ${tokenPath()}.
+  GSHEETS_PRO_OAUTH_CLIENT   OAuth client JSON location.
+  GSHEETS_PRO_CLIENT_ID      OAuth client id, in place of a JSON file.
+  GSHEETS_PRO_CLIENT_SECRET  OAuth client secret, paired with the id above.
+  GSHEETS_PRO_DATA_DIR       Where tokens and caches live. Default ${dataDir()}.
+  GSHEETS_PRO_DATA           Alias of GSHEETS_PRO_DATA_DIR.
+  GSHEETS_PRO_DEFAULT_PRESET Preset a call gets when it names none and nothing else says otherwise.
+  GSHEETS_PRO_REGISTRY       Registry file. Default the repo's .claude/gsheets-pro.json.
 `;
 
 interface Flags {
@@ -174,15 +178,21 @@ export async function collectChecks(): Promise<Check[]> {
     detail: dataDir(),
   });
 
-  const hasClient = fs.existsSync(clientFile);
+  const hasClientFile = fs.existsSync(clientFile);
+  const hasClientEnv = Boolean(process.env.GSHEETS_PRO_CLIENT_ID && process.env.GSHEETS_PRO_CLIENT_SECRET);
+  const hasClient = hasClientFile || hasClientEnv;
   checks.push({
     name: "OAuth client",
     status: hasClient ? "ok" : "warn",
-    detail: hasClient ? clientFile : `No file at ${clientFile}`,
+    detail: hasClientFile
+      ? clientFile
+      : hasClientEnv
+        ? "GSHEETS_PRO_CLIENT_ID / GSHEETS_PRO_CLIENT_SECRET (no file needed; this is how the gsheets-pro-local plugin supplies one)"
+        : `No file at ${clientFile}, and GSHEETS_PRO_CLIENT_ID / GSHEETS_PRO_CLIENT_SECRET are not both set`,
     ...(hasClient
       ? {}
       : {
-          fix: "Only needed for Path A. In Google Cloud Console enable the Google Sheets API, create an OAuth client of type Desktop app, download the JSON, and save it at that path. Or skip it entirely and use gcloud: `gcloud auth application-default login --scopes=" +
+          fix: "Only needed for Path A. In Google Cloud Console enable the Google Sheets API, create an OAuth client of type Desktop app, then either download the JSON and save it at that path, or set GSHEETS_PRO_CLIENT_ID and GSHEETS_PRO_CLIENT_SECRET directly. Or skip it entirely and use gcloud: `gcloud auth application-default login --scopes=" +
             DEFAULT_SCOPES.join(",") +
             "`.",
         }),

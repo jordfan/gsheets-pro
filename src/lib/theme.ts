@@ -465,20 +465,27 @@ export interface PresetSources {
   manifest?: string;
   /** From `.claude/gsheets-pro.json`, for a spreadsheet the repo knows about. */
   registry?: string;
+  /** Overrides `GSHEETS_PRO_DEFAULT_PRESET`, for tests. */
+  envDefault?: string;
   /** From `<data dir>/config.json`, a person's own default. */
   dataDir?: string;
 }
 
 export interface ResolvedPresetName {
   name: string;
-  source: "argument" | "manifest" | "registry" | "data_dir" | "default";
+  source: "argument" | "manifest" | "registry" | "env_default" | "data_dir" | "default";
 }
 
 /**
  * Which preset applies. The order runs from the most specific statement of
  * intent to the least: what this call asked for, what the spreadsheet says
- * about itself, what the repo says about this spreadsheet, what this person
- * prefers generally, and finally the neutral default.
+ * about itself, what the repo says about this spreadsheet, what `GSHEETS_PRO_DEFAULT_PRESET`
+ * says (how the gsheets-pro-local plugin passes a person's own default,
+ * configured through `/plugin` rather than written to a file), what this
+ * person's own `<data dir>/config.json` says, and finally the neutral
+ * default. The environment variable outranks the config file because it
+ * reflects this process's own, current configuration; the file is a
+ * lower-level, self-hosted mechanism that predates it.
  */
 export function resolvePresetName(sources: PresetSources = {}): ResolvedPresetName {
   const clean = (v?: string) => {
@@ -491,6 +498,8 @@ export function resolvePresetName(sources: PresetSources = {}): ResolvedPresetNa
   if (manifest) return { name: manifest, source: "manifest" };
   const registry = clean(sources.registry);
   if (registry) return { name: registry, source: "registry" };
+  const envDefault = clean(sources.envDefault ?? process.env.GSHEETS_PRO_DEFAULT_PRESET);
+  if (envDefault) return { name: envDefault, source: "env_default" };
   const fromData = clean(sources.dataDir ?? readDataDirDefaults().preset);
   if (fromData) return { name: fromData, source: "data_dir" };
   return { name: DEFAULT_PRESET, source: "default" };

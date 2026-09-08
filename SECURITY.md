@@ -8,10 +8,14 @@ token the server obtained on your behalf, or nothing at all if you are using
 Application Default Credentials from the gcloud CLI. Either way it lives on
 disk under the server's data directory, by default:
 
-- `~/.claude/plugins/data/gsheets-pro-local/token.json` on a normal plugin
-  install
-- wherever `GSHEETS_PRO_DATA_DIR` points, if you set it (a hosted deployment
-  typically points this at a mounted secrets volume)
+- `~/.claude/plugins/data/gsheets-pro-local-gsheets-pro/token.json` on a
+  normal plugin install (Claude Code names a plugin's data directory
+  `<plugin>-<marketplace>`, which is `gsheets-pro-local-gsheets-pro` for the
+  standard `/plugin marketplace add jordfan/gsheets-pro` install; confirmed
+  against a real install, not assumed)
+- wherever `GSHEETS_PRO_DATA_DIR` (or its alias `GSHEETS_PRO_DATA`, which is
+  how the plugin itself passes `${CLAUDE_PLUGIN_DATA}`) points, if you set it
+  (a hosted deployment typically points this at a mounted secrets volume)
 
 The OAuth client secret, if you are running Path A, lives in your system
 keychain when it was configured through `/plugin`, or in the file

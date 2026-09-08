@@ -66,11 +66,17 @@ export interface AuthState {
 
 /**
  * The plugin's data directory, in the order Claude Code makes one available.
- * Falling back to the temp directory is deliberate: a token that vanishes on
- * reboot is better than a crash in an environment with no writable home.
+ * `GSHEETS_PRO_DATA` is a plain alias of `GSHEETS_PRO_DATA_DIR`: it is what
+ * the gsheets-pro-local plugin's `.mcp.json` passes (`${CLAUDE_PLUGIN_DATA}`,
+ * unmodified) so the server lands on exactly the directory Claude Code
+ * already gives that plugin, `~/.claude/plugins/data/gsheets-pro-local/` on a
+ * normal install, with no `gsheets-pro` subfolder appended, matching what
+ * `SECURITY.md` documents. Falling back to the temp directory is deliberate:
+ * a token that vanishes on reboot is better than a crash in an environment
+ * with no writable home.
  */
 export function dataDir(): string {
-  const explicit = process.env.GSHEETS_PRO_DATA_DIR;
+  const explicit = process.env.GSHEETS_PRO_DATA_DIR ?? process.env.GSHEETS_PRO_DATA;
   if (explicit) return explicit;
   const plugin = process.env.CLAUDE_PLUGIN_DATA;
   if (plugin) return path.join(plugin, "gsheets-pro");
@@ -214,6 +220,29 @@ function readJsonFile<T>(file: string, label: string): T {
   }
 }
 
+/**
+ * The OAuth client, id and secret, from a file first and the environment
+ * second. A file is the deliberate, explicit choice: Path A's downloaded
+ * Desktop client JSON, or a hosted deployment's mounted secret. The
+ * environment pair, `GSHEETS_PRO_CLIENT_ID` and `GSHEETS_PRO_CLIENT_SECRET`,
+ * is how the gsheets-pro-local plugin supplies one instead, through its own
+ * `/plugin` configuration (stored in the system keychain, not a file) rather
+ * than a downloaded JSON on disk. Returns undefined when neither is there, so
+ * callers can build their own error naming the actual next step.
+ */
+export function resolveOAuthClientInfo(clientFile?: string): OAuthClientInfo | undefined {
+  const file = clientFile ?? clientSecretPath();
+  if (fs.existsSync(file)) {
+    return readOAuthClient(readJsonFile<OAuthClientFile>(file, "the OAuth client file"), file);
+  }
+  const clientId = process.env.GSHEETS_PRO_CLIENT_ID;
+  const clientSecret = process.env.GSHEETS_PRO_CLIENT_SECRET;
+  if (clientId && clientSecret) {
+    return { clientId, clientSecret, redirectUris: [], kind: "installed" };
+  }
+  return undefined;
+}
+
 export function saveToken(credentials: Credentials, client: OAuthClientInfo, file = tokenPath()): void {
   const payload: StoredToken = {
     token: credentials.access_token ?? null,
@@ -283,21 +312,18 @@ function fromTokenFile(file: string, clientFile: string | undefined, scopes: str
   let clientSecret = stored.clientSecret;
   let redirectUri: string | undefined;
 
-  const secretFile = clientFile ?? clientSecretPath();
-  if (fs.existsSync(secretFile)) {
-    const info = readOAuthClient(
-      readJsonFile<OAuthClientFile>(secretFile, "the OAuth client file"),
-      secretFile,
-    );
-    clientId = info.clientId;
-    clientSecret = info.clientSecret;
-    redirectUri = info.redirectUris[0];
+  const override = resolveOAuthClientInfo(clientFile);
+  if (override) {
+    clientId = override.clientId;
+    clientSecret = override.clientSecret;
+    redirectUri = override.redirectUris[0];
   }
 
   if (!clientId || !clientSecret) {
+    const secretFile = clientFile ?? clientSecretPath();
     throw err.authMissing(
-      `The token at ${file} has no client id and secret, and there is no OAuth client file at ${secretFile}.`,
-      "Put the Desktop client JSON at that path, or run `gsheets-pro auth` to sign in again and write a complete token.",
+      `The token at ${file} has no client id and secret, there is no OAuth client file at ${secretFile}, and GSHEETS_PRO_CLIENT_ID / GSHEETS_PRO_CLIENT_SECRET are not both set.`,
+      "Put the Desktop client JSON at that path, set GSHEETS_PRO_CLIENT_ID and GSHEETS_PRO_CLIENT_SECRET, or run `gsheets-pro auth` to sign in again and write a complete token.",
     );
   }
   if (!stored.refreshToken) {
@@ -377,16 +403,16 @@ export interface AuthFlowOptions {
  */
 export async function runAuthFlow(options: AuthFlowOptions = {}): Promise<{ tokenFile: string; scopes: string[] }> {
   const scopes = options.scopes ?? DEFAULT_SCOPES;
-  const clientFile = options.clientFile ?? clientSecretPath();
   const outFile = options.tokenFile ?? tokenPath();
 
-  if (!fs.existsSync(clientFile)) {
+  const info = resolveOAuthClientInfo(options.clientFile);
+  if (!info) {
+    const file = options.clientFile ?? clientSecretPath();
     throw err.authMissing(
-      `No OAuth client file at ${clientFile}.`,
-      "In Google Cloud Console, enable the Google Sheets API, create an OAuth client of type Desktop app, download its JSON, and save it at that path. `gsheets-pro doctor` repeats these steps.",
+      `No OAuth client file at ${file}, and GSHEETS_PRO_CLIENT_ID / GSHEETS_PRO_CLIENT_SECRET are not both set.`,
+      "In Google Cloud Console, enable the Google Sheets API, create an OAuth client of type Desktop app, then either download its JSON and save it at that path, or set GSHEETS_PRO_CLIENT_ID and GSHEETS_PRO_CLIENT_SECRET directly, which is how the gsheets-pro-local plugin's own configuration reaches here. `gsheets-pro doctor` repeats these steps.",
     );
   }
-  const info = readOAuthClient(readJsonFile<OAuthClientFile>(clientFile, "the OAuth client file"), clientFile);
 
   const server = http.createServer();
   const port = await listen(server, options.port ?? 0);

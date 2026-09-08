@@ -177,7 +177,8 @@ than asks when nobody is watching.
 ## What is stored, and where
 
 The token, and only the token, in the plugin's data directory. On a normal
-install that is `~/.claude/plugins/data/gsheets-pro-local/token.json`. Delete
+install that is `~/.claude/plugins/data/gsheets-pro-local-gsheets-pro/token.json`
+(Claude Code names a plugin's data directory `<plugin>-<marketplace>`). Delete
 that file to sign out. The client secret lives in your system keychain if you
 configured the plugin through `/plugin`. Nothing is sent anywhere but Google,
 and the server logs metadata only, never cell contents.

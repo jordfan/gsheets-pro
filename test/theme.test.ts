@@ -6,7 +6,7 @@
  * nine slots, and a role whose color names a slot compiles to a theme
  * reference rather than to frozen hex.
  */
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import {
   checkPreset,
@@ -299,6 +299,17 @@ describe("tokens", () => {
 });
 
 describe("resolution order", () => {
+  const savedEnvDefault = process.env.GSHEETS_PRO_DEFAULT_PRESET;
+
+  beforeEach(() => {
+    delete process.env.GSHEETS_PRO_DEFAULT_PRESET;
+  });
+
+  afterEach(() => {
+    if (savedEnvDefault === undefined) delete process.env.GSHEETS_PRO_DEFAULT_PRESET;
+    else process.env.GSHEETS_PRO_DEFAULT_PRESET = savedEnvDefault;
+  });
+
   test("the argument beats everything", () => {
     expect(
       resolvePresetName({ argument: "park", manifest: "neutral", registry: "finance-classic" }),
@@ -309,6 +320,28 @@ describe("resolution order", () => {
     expect(resolvePresetName({ manifest: "park", registry: "neutral" })).toEqual({
       name: "park",
       source: "manifest",
+    });
+  });
+
+  test("the registry beats GSHEETS_PRO_DEFAULT_PRESET", () => {
+    expect(resolvePresetName({ registry: "park", envDefault: "finance-classic" })).toEqual({
+      name: "park",
+      source: "registry",
+    });
+  });
+
+  test("GSHEETS_PRO_DEFAULT_PRESET beats the person's <data dir>/config.json default", () => {
+    expect(resolvePresetName({ envDefault: "park", dataDir: "finance-classic" })).toEqual({
+      name: "park",
+      source: "env_default",
+    });
+  });
+
+  test("the real environment variable is read when no envDefault override is passed", () => {
+    process.env.GSHEETS_PRO_DEFAULT_PRESET = "park";
+    expect(resolvePresetName({ dataDir: "finance-classic" })).toEqual({
+      name: "park",
+      source: "env_default",
     });
   });
 
@@ -326,8 +359,13 @@ describe("resolution order", () => {
     });
   });
 
-  test("an empty string is not a statement of intent", () => {
+  test("an empty string is not a statement of intent, for the environment variable either", () => {
+    process.env.GSHEETS_PRO_DEFAULT_PRESET = "   ";
     expect(resolvePresetName({ argument: "   ", manifest: "park" }).name).toBe("park");
+    expect(resolvePresetName({ dataDir: "finance-classic" })).toEqual({
+      name: "finance-classic",
+      source: "data_dir",
+    });
   });
 
   test("archetype falls back to the preset's own default", () => {
