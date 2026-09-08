@@ -451,6 +451,24 @@ async function build() {
     autofit: { columns: "A:I" },
   });
 
+  // Then widen the two dropdown columns, because autofit cannot see a chip.
+  //
+  // A dropdown value renders in the browser as a pill: rounded background,
+  // horizontal padding, and room for the arrow. Autofit measures the text and
+  // nothing else, so it sizes the column to the words and the pill is then
+  // clipped. It is invisible in a render, where dropdowns paint as plain text
+  // and look fine, and obvious the moment anyone opens the sheet. Roughly a
+  // third more than autofit gives is what the pill needs; these two numbers
+  // were read off the browser, not estimated.
+  await call("sheets_style", {
+    spreadsheet_id: id,
+    sheet: "Roster",
+    column_widths: [
+      { columns: "D:D", pixels: 110 }, // Teacher, longest chip "N. Okafor"
+      { columns: "F:F", pixels: 300 }, // Status, longest chip is 36 characters
+    ],
+  });
+
   // The Check column is the exception, and it is the exception for a reason
   // autofit cannot help with: it holds whole sentences, so autofitting it would
   // make one column wider than the page. A fixed width plus wrapping is what a

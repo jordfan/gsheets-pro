@@ -106,8 +106,9 @@ Two things worth knowing that are easy to get wrong:
 `scripts/demo/build-golden.mjs` did run, repeatedly, against the live API. It
 builds the demo spreadsheet by driving the shipped stdio server over MCP, so it
 exercises the same sixteen calls a real session makes. That turned out to be the
-most useful test in this whole piece of work, because the render caught five
-defects that a clean lint did not.
+most useful test in this whole piece of work, because it turned up six defects a
+clean lint did not. Five of them the render showed. The sixth only the browser
+did, which is its own finding.
 
 The sheet it produces is at
 `https://docs.google.com/spreadsheets/d/1HII7AoE8OBxEUu1_cxlEa8XHpdvJpb-MVGuZCwBu0hE/edit`,
@@ -118,8 +119,10 @@ does not share it, so the link in the README is a decision and two deliberate
 steps, not an output.
 
 The README and site hero is a browser screenshot of that sheet rather than the
-render, because the export brands Table headers with a column index that is not
-in the sheet. Finding 5 below.
+render, for two reasons that both turned up here. The export marks every noted
+cell with a footnote index, so every Table header reads `Student [1]`, and it
+paints dropdowns as plain text, so it cannot show whether a chip is clipped.
+Findings 5 and 6.
 
 The lint said `success, 0 errors in 28 formulas` on the very first build. The
 picture said otherwise.
@@ -216,6 +219,35 @@ What follows:
   house style asks for, is exactly the sheet whose render reads oddly. A browser
   screenshot is the honest artefact for anything going in front of people, and
   `sheets_render` stays the agent-facing tool.
+
+**6. Autofit cannot see a dropdown chip, and only the browser shows it.** After
+autofit, the Teacher and Status columns read `N. O...` and
+`Time confirmed by the fa...` in the browser. A dropdown value renders there as
+a pill: rounded background, horizontal padding, room for the arrow. Autofit
+measures the text and nothing else, so it sizes the column to the words and the
+pill is clipped.
+
+The render is no help here, and is actively misleading. Dropdowns export as
+plain text, so a rendered PNG of a clipped chip column looks perfectly fine.
+This is the only defect in the whole exercise that the verify loop could not
+have caught, and the only one found by opening the spreadsheet like a person.
+
+About a third more width than autofit gives is what the pill needs. Measured,
+not estimated: Teacher went from roughly 85 pixels to 110, Status from roughly
+230 to 300, each read back off the browser until every chip showed in full. 240
+was not enough for Status, which is the sort of thing only looking tells you.
+
+Two changes follow:
+
+- **A style-guide rule.** A column of dropdown values gets about a third more
+  width than its text needs, because the chip is wider than the words. It
+  belongs in `references/style-guide.md` immediately after the autofit rule from
+  finding 4, because it is the exception to it and the two are read together.
+- **A limitation worth stating plainly.** The verify loop is blind to chip
+  rendering: `sheets_check` cannot see width and `sheets_render` paints
+  dropdowns as text, so a clipped chip column passes both and fails a human.
+  `references/limitations.md` should say so, because the skill otherwise implies
+  lint plus render is sufficient before handing a sheet over.
 
 One thing worked exactly as designed and is worth recording. The render is
 truthful about API-created dropdowns being invisible, so the picture gave no
