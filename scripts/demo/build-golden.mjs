@@ -98,7 +98,11 @@ const LESSONS_FORMULA = `=IF($A${FIRST_DATA_ROW}="", "", IF($I${FIRST_DATA_ROW}<
 const FEE_FORMULA = [
   "=LET(",
   `  lessons, $G${FIRST_DATA_ROW},`,
-  `  rate, SWITCH($E${FIRST_DATA_ROW}, "30", Rate_30_Minutes, "45", Rate_45_Minutes, "60", Rate_60_Minutes, 0),`,
+  // `Length` is a DROPDOWN column whose options look like numbers, and Sheets
+  // stores them as numbers. Comparing the cell to the string "30" silently
+  // matched nothing and every fee came out blank. Coercing to text first works
+  // whichever way the value is stored.
+  `  rate, SWITCH($E${FIRST_DATA_ROW} & "", "30", Rate_30_Minutes, "45", Rate_45_Minutes, "60", Rate_60_Minutes, 0),`,
   `  inactive, OR($F${FIRST_DATA_ROW}="Not continuing this term", $F${FIRST_DATA_ROW}="Waitlisted for this term"),`,
   "  IF(OR(inactive, lessons=\"\", rate=0), \"\", rate * lessons)",
   ")",
@@ -262,6 +266,18 @@ async function call(name, args) {
   return result.structuredContent ?? {};
 }
 
+/**
+ * The row `gap` rows below the bottom of an A1 range like `A1:C7`.
+ * Falls back to a row well clear of any plausible block if the range is
+ * missing, because a summary written one row too low is a cosmetic problem and
+ * a summary written on top of the assumptions is not.
+ */
+function rowBelow(rangeA1, gap) {
+  const end = typeof rangeA1 === "string" ? rangeA1.split(":").pop() : "";
+  const row = Number.parseInt(String(end).replace(/[^0-9]/g, ""), 10);
+  return Number.isFinite(row) && row > 0 ? row + gap : 20;
+}
+
 function requireCredential() {
   const token = process.env.GSHEETS_PRO_TOKEN_FILE;
   if (token && !fs.existsSync(token)) {
@@ -311,7 +327,7 @@ async function build() {
 
   // 3. The assumptions, before anything that depends on them. Each one gets a
   //    named range and a line saying where the number came from.
-  await call("sheets_settings", {
+  const settings = await call("sheets_settings", {
     spreadsheet_id: id,
     action: "block",
     sheet: "Settings",
@@ -321,6 +337,12 @@ async function build() {
     preset: "park",
     protect: true,
   });
+
+  // Where the summary goes depends on how tall the block came out, and the
+  // block's height depends on how the tool chose to lay it out. Ask rather
+  // than guess: a hardcoded row here is a collision waiting for the day
+  // somebody adds a fifth assumption.
+  const summaryRow = rowBelow(settings?.settings?.range, 2);
 
   // 4. The values a person owns, written before the Table exists, so the
   //    contract this build is about to record is never something the build
@@ -346,14 +368,53 @@ async function build() {
     freeze_header: true,
     filter: true,
     protect_header: true,
-    status_column: "Status",
-    status_fill_rules: true,
-    status_colors: {
-      [STATUS_OPTIONS[3]]: "ok",
-      [STATUS_OPTIONS[2]]: "warn",
-      [STATUS_OPTIONS[4]]: "muted",
-      [STATUS_OPTIONS[5]]: "muted",
-    },
+    // Status fills are off deliberately. `status_fill_rules` paints every
+    // option, and any option not named in `status_colors` falls back to the
+    // `muted` role, which in every shipped preset is a text colour rather than
+    // a tint: park's is #6B7770. As a fill behind black text it is unreadable,
+    // and the first render of this sheet had three illegible status rows
+    // because of it. Until `muted` is either given a fill value or dropped from
+    // the status roles, the words carry the status here and the one signal
+    // worth painting is painted below, on the Check column.
+    status_fill_rules: false,
+  });
+
+  // The one conditional rule this sheet needs: a row the Check column is
+  // flagging should be visible from across the room. A rule rather than a
+  // painted cell, so it applies itself to every row anyone adds later.
+  await call("sheets_conditional_format", {
+    spreadsheet_id: id,
+    action: "add",
+    sheet: "Roster",
+    ranges: [`J${FIRST_DATA_ROW}:J${LAST_DATA_ROW}`],
+    kind: "boolean",
+    operator: "not_blank",
+    format: { fill: "flag" },
+    preset: "park",
+  });
+
+  // Widths. Autofit for the nine columns holding short values, because
+  // hand-picked pixels are a losing game: three rounds of tuning here moved a
+  // truncation from the Check column to the header of `Lesson override` to the
+  // longest status option, and the next change to the data would move it again.
+  // Autofit sizes each column to its own longest cell, header included.
+  await call("sheets_style", {
+    spreadsheet_id: id,
+    sheet: "Roster",
+    autofit: { columns: "A:I" },
+  });
+
+  // The Check column is the exception, and it is the exception for a reason
+  // autofit cannot help with: it holds whole sentences, so autofitting it would
+  // make one column wider than the page. A fixed width plus wrapping is what a
+  // column of prose wants, and it survives a longer message where more pixels
+  // only move the cliff.
+  await call("sheets_style", {
+    spreadsheet_id: id,
+    sheet: "Roster",
+    range: `J1:J${LAST_DATA_ROW}`,
+    style: { wrap: "WRAP", vertical_align: "TOP" },
+    column_widths: [{ columns: "J:J", pixels: 250 }],
   });
 
   // 6. One formula per column, written once and filled down.
@@ -377,7 +438,7 @@ async function build() {
     spreadsheet_id: id,
     sheet: "Settings",
     mode: "range",
-    range: "A9:B13",
+    range: `A${summaryRow}:B${summaryRow + 4}`,
     values: [
       ["This term at a glance", ""],
       ["Students on the roster", "=COUNTA(Roster[Student])"],
@@ -409,10 +470,19 @@ async function build() {
 }
 
 function keepTheRender(rendered) {
-  const first = (rendered?.outputs ?? [])[0];
+  // `sheets_render` reports its files under `pages`, one entry per PDF page,
+  // each carrying `path` locally and `url` when the server is hosted. Page one
+  // is the hero image; a tab long enough to paginate is too long for a README.
+  const first = (rendered?.pages ?? [])[0];
   const source = first?.path;
   if (!source || !fs.existsSync(source)) {
-    return { kept: false, why: "the render returned no local file path" };
+    return {
+      kept: false,
+      why:
+        rendered?.mode === "hosted"
+          ? "the server is in hosted mode, so the render came back as a URL rather than a path"
+          : "the render reported no local file path",
+    };
   }
   fs.mkdirSync(path.dirname(RENDER_OUT), { recursive: true });
   fs.copyFileSync(source, RENDER_OUT);
@@ -442,6 +512,13 @@ async function main() {
       ? `Render:      ${path.relative(REPO, RENDER_OUT)} (${render.bytes} bytes)`
       : `Render:      not kept, ${render.why}`,
   );
+  // A clean status still leaves warnings worth reading, and a demo nobody reads
+  // the warnings on is how a golden sheet stops being golden.
+  for (const finding of outcome.check?.findings ?? []) {
+    console.log(
+      `Finding:     [${finding.severity ?? "?"}] ${finding.rule ?? ""} ${finding.location ?? ""} ${finding.message ?? ""}`.trim(),
+    );
+  }
   console.log("-".repeat(72));
   console.log("\nShare it view-only before putting the link in the README or the skill.");
 
