@@ -43,6 +43,14 @@ const policyShape = {
   colleague_safe_text: z.boolean().optional(),
   /** Phrases the colleague safe lint should not flag on this sheet. */
   allowlist: z.array(z.string()).optional(),
+  /**
+   * The preset this spreadsheet is styled with. A repo that says so here means
+   * a styling call does not have to be told, and a colleague's sheet keeps the
+   * palette it already has rather than acquiring ours.
+   */
+  preset: z.string().optional(),
+  /** `tracker` or `model`, when the repo knows which this spreadsheet is. */
+  archetype: z.enum(["tracker", "model"]).optional(),
   /** Free text shown in `sheets_open`, for example who maintains the sheet. */
   note: z.string().optional(),
 };
@@ -85,6 +93,9 @@ export interface Policy {
   colleagueSafeText: boolean;
   allowlist: string[];
   note?: string;
+  /** The preset the repo says this spreadsheet uses, when it says. */
+  preset?: string;
+  archetype?: "tracker" | "model";
 }
 
 export interface Registry {
@@ -208,6 +219,10 @@ function buildRegistry(fileData: RegistryFile, filePath: string): Registry {
       if (writable) policy.writableColumns = writable;
       const note = pick("note");
       if (note) policy.note = note;
+      const preset = pick("preset");
+      if (preset) policy.preset = preset;
+      const archetype = pick("archetype");
+      if (archetype) policy.archetype = archetype;
       return policy;
     },
   };
