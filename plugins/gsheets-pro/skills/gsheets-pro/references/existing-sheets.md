@@ -76,6 +76,12 @@ protects known spreadsheets with no metadata and no setup:
       "owner": "human",
       "positional_rows": true,
       "preset": "park"
+    },
+    "1SyNtH3t1c_aBcDeF_ExampleSpreadsheetId_0003": {
+      "name": "Term Dates",
+      "owner": "human",
+      "read_only": true,
+      "note": "The calendar everything else quotes. Read it, never write it."
     }
   }
 }
@@ -84,6 +90,7 @@ protects known spreadsheets with no metadata and no setup:
 | Field | Effect |
 |---|---|
 | `owner` | `human`, `shared`, or `agent`. `human` and `shared` both trigger the restyling guard |
+| `read_only` | Nothing here is ours to change. Every writing tool refuses without `force`, whatever the columns say |
 | `writable_columns` | A1 column ranges. A write outside them is refused without `force`, and lint rule L14 reports one that got through |
 | `positional_rows` | Row order is load bearing. Sorting, inserting, deleting, and deduplicating rows are refused outright, not asked about |
 | `colleague_safe_text` | Lint rule L23 runs on this spreadsheet's text, and `sheets_write` refuses text that would not read as a colleague's. Implied by `owner: human` and `owner: shared` |
@@ -91,9 +98,18 @@ protects known spreadsheets with no metadata and no setup:
 | `preset` | The palette this spreadsheet already uses, so a styling call does not have to be told and does not give it ours |
 | `archetype` | `tracker` or `model`, when the repository knows which this spreadsheet is |
 
+**`read_only` is not the same as an empty `writable_columns`, and that is the
+point of it.** An absent or empty column list reads as "no restriction stated",
+so it says nothing at all: there was no way to write down "never write here".
+`read_only` says it in one word, does not depend on knowing the columns, and
+reaches the tools that never look at a column, which is most of them. A
+reference sheet of term dates, a finished historical tab, a workbook somebody
+else maintains and you only ever quote: these are what it is for.
+
 Every field may also be set per tab, under a `sheets` object keyed by tab name,
 and under `defaults` for every spreadsheet in the file. The most specific
-statement wins.
+statement wins. That matters most for `read_only`, because a workbook is often
+perfectly writable except for one tab nobody should touch again.
 
 The registry is also what the SessionStart hook reads. In a repository that has
 one, the rules and the list of protected spreadsheets are injected before the

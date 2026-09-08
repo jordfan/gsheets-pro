@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import { a1ToGridRange, gridRangeToA1, parseA1, quoteSheetName } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
+import { assertWritable } from "../lib/registry.js";
 import { recordWrite } from "../lib/writelog.js";
 import {
   buildCellFormat,
@@ -108,6 +109,9 @@ export const conditionalFormatInputSchema = {
     .optional()
     .describe("Where to insert an added rule. Rules are evaluated in order, first match wins. Default last."),
   dry_run: z.boolean().optional().describe("Report what would be sent, and send nothing."),
+  force: z.boolean().optional().describe(
+      "Act even where the registry marks the spreadsheet read only. Read the refusal first: it names why somebody wrote that down.",
+    ),
 };
 
 type CfArgs = {
@@ -139,6 +143,7 @@ type CfArgs = {
   preset?: string;
   index?: number;
   dry_run?: boolean;
+  force?: boolean;
 };
 
 interface SheetRules {
@@ -162,6 +167,12 @@ export function createConditionalFormatTool(
     handler: guarded(async (raw: Record<string, unknown>): Promise<ToolResponse> => {
       const args = raw as CfArgs;
       const ctx = await deps.getContext();
+      if (args.action !== "list") {
+        assertWritable(ctx.registry?.policyFor(args.spreadsheet_id, args.sheet), {
+          tool: "sheets_conditional_format",
+          ...(args.force === true ? { force: true } : {}),
+        });
+      }
 
       const all = await readRules(ctx, args.spreadsheet_id);
       const target = args.sheet

@@ -41,7 +41,7 @@ import { runBatchUpdate, withRetry } from "../lib/batch.js";
 import { describeCheck, runErrorGate, type GateCheck } from "../lib/errorgate.js";
 import { recordWrite } from "../lib/writelog.js";
 import { GsheetsError, err } from "../lib/errors.js";
-import { describeSheet, type Policy } from "../lib/registry.js";
+import { assertWritable, describeSheet, type Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import type { SheetInfo } from "../lib/sheetcache.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
@@ -213,10 +213,12 @@ export const structureInputSchema = {
     .describe(
       "Required by delete_tab, delete_rows, delete_columns, dedupe and find_replace, and by protect when warning_only is false. Set it to the tab's own name.",
     ),
+  force: z.boolean().optional().describe("Write even where the registry marks the spreadsheet read only. Read the refusal first: it names why somebody wrote that down."),
 };
 
 type StructureArgs = {
   spreadsheet_id: string;
+  force?: boolean;
   action: StructureAction;
   sheet?: string;
   title?: string;
@@ -271,6 +273,7 @@ export function createStructureTool(deps: ToolDeps): ToolDefinition<typeof struc
         action === "add_tab" ? undefined : await ctx.cache.resolve(spreadsheetId, requireSheet(args));
       const policy = ctx.registry?.policyFor(spreadsheetId, info?.title);
 
+      assertWritable(policy, { tool: "sheets_structure", ...(args.force === true ? { force: true } : {}) });
       guardPositionalRows(action, policy, info?.title);
       guardConfirmation(action, args, info?.title);
 

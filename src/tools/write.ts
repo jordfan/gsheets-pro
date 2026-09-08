@@ -74,7 +74,7 @@ import {
   type GateCheck,
 } from "../lib/errorgate.js";
 import { normalizeHeaders, type CellValue } from "../lib/records.js";
-import { describeSheet, isColumnWritable, type Policy } from "../lib/registry.js";
+import { assertWritable, describeSheet, isColumnWritable, type Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import {
   checkTexts,
@@ -279,6 +279,7 @@ export function createWriteTool(deps: ToolDeps): ToolDefinition<typeof writeInpu
       const surface = await readSurface(ctx, spreadsheetId, info, args, mode);
       const { headers, headerRow, contract, policy } = surface;
 
+      assertWritable(policy, { tool: "sheets_write", ...(args.force ? { force: true } : {}) });
       assertExpectedContract(args.expect_contract, contract, headers, sheetName);
 
       const plan = await buildPlan({ ctx, spreadsheetId, info, args, mode, surface });

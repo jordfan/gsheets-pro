@@ -59,7 +59,7 @@ import {
   type GateCheck,
 } from "../lib/errorgate.js";
 import { resolveNumberFormat } from "../lib/numfmt.js";
-import type { Policy } from "../lib/registry.js";
+import { assertWritable, type Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import { resolveSpreadsheetId, SPREADSHEET_ID_DESCRIPTION } from "../lib/spreadsheetid.js";
 import { recordWrite } from "../lib/writelog.js";
@@ -262,6 +262,7 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
       const surface = await readSurface(ctx, spreadsheetId, args.sheet);
       const policy = ctx.registry?.policyFor(spreadsheetId, args.sheet);
 
+      assertWritable(policy, { tool: "sheets_style", ...(args.force ? { force: true } : {}) });
       assertRestyleAllowed(args, policy, surface.spreadsheetTitle);
 
       const compiled = args.preset || args.style?.["role"] || args.banding

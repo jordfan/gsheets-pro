@@ -32,7 +32,7 @@ import { recordWrite } from "../lib/writelog.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { METADATA_KEYS } from "../lib/contract.js";
 import { hasSheetRecord, presetFor, readMetadata, sheetRecord } from "../lib/metaread.js";
-import { isColumnWritable } from "../lib/registry.js";
+import { assertWritable, isColumnWritable } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import {
   isFormula,
@@ -102,6 +102,7 @@ export const settingsInputSchema = {
     .optional()
     .describe("Colour the tab with the preset's inputs colour, so it reads as an inputs tab. Default true."),
   dry_run: z.boolean().optional().describe("Report what would be sent, and send nothing."),
+  force: z.boolean().optional().describe("Write even where the registry marks the spreadsheet read only. Read the refusal first: it names why somebody wrote that down."),
 };
 
 type SettingsArgs = {
@@ -118,6 +119,7 @@ type SettingsArgs = {
   protect?: boolean;
   tab_color?: boolean;
   dry_run?: boolean;
+  force?: boolean;
 };
 
 interface ExistingNamedRange {
@@ -363,6 +365,7 @@ async function writeBlock(
 
   // The registry decides whether these columns are ours before anything else.
   const policy = ctx.registry?.policyFor(args.spreadsheet_id, info.title);
+  assertWritable(policy, { tool: "sheets_settings", ...(args.force === true ? { force: true } : {}) });
   for (let c = startColumn; c < startColumn + SETTINGS_HEADERS.length; c += 1) {
     const writable = isColumnWritable(policy, { letter: columnIndexToLetter(c) });
     if (!writable.writable && writable.reason) {

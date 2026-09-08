@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import { runBatchUpdate } from "../lib/batch.js";
 import { describeCheck, runErrorGate, type GateCheck } from "../lib/errorgate.js";
+import { assertWritable } from "../lib/registry.js";
 import { recordWrite } from "../lib/writelog.js";
 import { err } from "../lib/errors.js";
 import {
@@ -60,6 +61,12 @@ export const batchInputSchema = {
     .describe(
       "Resolve the requests and return the plan without sending anything. Worth doing once for any batch you have not run before.",
     ),
+  force: z
+    .boolean()
+    .optional()
+    .describe(
+      "Send even where the registry marks the spreadsheet read only. Read the refusal first: it names why somebody wrote that down.",
+    ),
   check: z
     .boolean()
     .optional()
@@ -73,6 +80,7 @@ type BatchArgs = {
   requests: Array<Record<string, unknown>>;
   sheet?: string;
   dry_run?: boolean;
+  force?: boolean;
   check?: boolean;
 };
 
@@ -115,6 +123,14 @@ export function createBatchTool(deps: ToolDeps): ToolDefinition<typeof batchInpu
 
       const types = resolved.plan.map((p) => p.type);
       const changesValues = types.some((t) => VALUE_CHANGING_REQUESTS.includes(t));
+      // Now the tabs are known, so a read-only sheet can be refused by name.
+      for (const sheet of resolved.sheets.length ? resolved.sheets : [undefined]) {
+        assertWritable(ctx.registry?.policyFor(spreadsheetId, sheet), {
+          tool: "sheets_batch",
+          ...(args.force === true ? { force: true } : {}),
+        });
+      }
+
       const reminders = buildReminders(ctx, spreadsheetId, resolved.sheets, types);
 
       if (args.dry_run) {

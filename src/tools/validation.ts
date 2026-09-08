@@ -31,7 +31,7 @@ import { recordWrite } from "../lib/writelog.js";
 import { buildCondition, CONDITION_KINDS, CONDITION_OPERATORS, describeCondition } from "../lib/conditions.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { columnRecords, readMetadata } from "../lib/metaread.js";
-import { isColumnWritable } from "../lib/registry.js";
+import { assertWritable, isColumnWritable } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
@@ -163,6 +163,7 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
 
       // The registry has the final word on which columns are ours to write.
       const policy = ctx.registry?.policyFor(args.spreadsheet_id, info.title);
+      assertWritable(policy, { tool: "sheets_validation", ...(args.force === true ? { force: true } : {}) });
       const refusals: string[] = [];
       const firstColumn = grid.startColumnIndex ?? 0;
       const lastColumn = (grid.endColumnIndex ?? firstColumn + 1) - 1;

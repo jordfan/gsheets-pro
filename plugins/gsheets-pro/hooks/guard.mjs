@@ -62,6 +62,20 @@ const ROW_ORDER_ACTIONS = new Set([
 // preset with no range is what writes the workbook theme.
 const RESTYLE_KEYS = ["preset", "banding", "clear"];
 
+// Every tool that can change a spreadsheet. read_only stops all of them, which
+// is the difference between it and writable_columns: the column list can only
+// speak for tools that look at columns, and most of these never do.
+const WRITING_TOOLS = new Set([
+  "sheets_write",
+  "sheets_style",
+  "sheets_table",
+  "sheets_settings",
+  "sheets_validation",
+  "sheets_conditional_format",
+  "sheets_structure",
+  "sheets_batch",
+]);
+
 /**
  * Decide whether this call needs a human in the loop.
  * Returns a sentence naming the sheet and the specific concern, or null.
@@ -71,6 +85,19 @@ function assess(tool, input, entry) {
   const owner = entry?.owner;
   const isProtected = PROTECTED_OWNERS.has(owner);
   const action = input?.action;
+
+  // read_only comes first and applies to every writing tool, whatever else the
+  // entry says. The server refuses these too; the hook is what catches them in
+  // a fresh clone before a single call goes out.
+  if (entry?.read_only && WRITING_TOOLS.has(tool) && input?.force !== true) {
+    const tab = input?.sheet ? ` (tab ${input.sheet})` : "";
+    return (
+      `${sheetName}${tab} is marked read only in the registry, so nothing on it is ours ` +
+      `to change. This is a stronger statement than a writable-column list: somebody ` +
+      `wrote down that this spreadsheet is a reference, not a working surface.` +
+      (entry?.note ? ` ${entry.note}` : "")
+    );
+  }
 
   if (tool === "sheets_structure") {
     if (entry?.positional_rows && ROW_ORDER_ACTIONS.has(action)) {

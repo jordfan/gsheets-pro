@@ -32,6 +32,16 @@ export type Owner = "human" | "shared" | "agent";
 const policyShape = {
   owner: z.enum(["human", "shared", "agent"]).optional(),
   /**
+   * Nothing here is ours to change. Every writing tool refuses without force.
+   *
+   * This is not the same statement as an empty `writable_columns`, and that is
+   * why it exists: an absent or empty list reads as "no restriction stated",
+   * so a reference sheet of term dates, or a finished historical tab, had no
+   * way to say "never write here" at all. `read_only` says it in one word and
+   * does not depend on knowing the columns.
+   */
+  read_only: z.boolean().optional(),
+  /**
    * Columns the plugin may write. Each entry is a column letter or span
    * ("A", "B:D") or a header name matched without regard to case. Absent means
    * every column is writable.
@@ -91,6 +101,8 @@ export interface Policy {
   writableColumns?: string[];
   positionalRows: boolean;
   colleagueSafeText: boolean;
+  /** Nothing on this sheet is ours to change. */
+  readOnly: boolean;
   allowlist: string[];
   note?: string;
   /** The preset the repo says this spreadsheet uses, when it says. */
@@ -211,6 +223,7 @@ function buildRegistry(fileData: RegistryFile, filePath: string): Registry {
         owner: (pick("owner") as Owner) ?? "shared",
         positionalRows: pick("positional_rows") === true,
         colleagueSafeText: pick("colleague_safe_text") === true,
+        readOnly: pick("read_only") === true,
         allowlist: layered.flatMap((layer) => layer.allowlist ?? []),
       };
       if (entry.name) policy.name = entry.name;
@@ -276,6 +289,11 @@ export function isColumnWritable(
   policy: Policy | undefined,
   column: { letter?: string; header?: string },
 ): ColumnWritability {
+  // read_only outranks the column list, and is checked before it, because the
+  // whole point of the flag is to say something an empty column list cannot.
+  if (policy?.readOnly) {
+    return { writable: false, reason: readOnlyReason(policy) };
+  }
   if (!policy || !policy.writableColumns || policy.writableColumns.length === 0) {
     return { writable: true };
   }
@@ -323,6 +341,33 @@ export function describePolicy(policy: Policy): string {
   if (policy.colleagueSafeText) parts.push("text here is read by colleagues");
   if (policy.note) parts.push(policy.note);
   return parts.join("; ");
+}
+
+/** One sentence saying this sheet is not ours, for a refusal message. */
+export function readOnlyReason(policy: Policy): string {
+  return `${describeSheet(policy)} marks this spreadsheet read only, so nothing here is ours to change.${
+    policy.note ? ` ${policy.note}` : ""
+  }`;
+}
+
+/**
+ * Refuse a write to a read-only sheet.
+ *
+ * Every writing tool calls this before it does anything, because `read_only`
+ * has to stop a banding, a sort or a raw batchUpdate as surely as it stops a
+ * value write, and those tools never look at a column at all.
+ */
+export function assertWritable(
+  policy: Policy | undefined,
+  options: { tool: string; force?: boolean },
+): void {
+  if (!policy?.readOnly || options.force === true) return;
+  throw new GsheetsError(
+    "contract_violation",
+    `${options.tool} was called on a spreadsheet the registry marks read only. ${readOnlyReason(policy)}`,
+    "Nothing on this sheet is ours to change, whatever its columns say. If the registry is out of date, fix the registry rather than passing force; if a person has genuinely asked for this one change, force is how you say so.",
+    { read_only: true, registry: policy.path },
+  );
 }
 
 /** True when a structure change that moves rows is forbidden here. */

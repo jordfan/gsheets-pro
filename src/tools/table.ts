@@ -35,6 +35,7 @@ import {
   type GridRange,
 } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
+import { assertWritable } from "../lib/registry.js";
 import { recordWrite } from "../lib/writelog.js";
 import type { Context } from "../lib/client.js";
 import { fingerprintRule } from "../lib/cfrules.js";
@@ -215,6 +216,10 @@ export function createTableTool(deps: ToolDeps): ToolDefinition<typeof tableInpu
       const args = raw as TableArgs;
       const ctx = await deps.getContext();
       const info = await ctx.cache.resolve(args.spreadsheet_id, args.sheet);
+      assertWritable(ctx.registry?.policyFor(args.spreadsheet_id, info.title), {
+        tool: "sheets_table",
+        ...(args.force === true ? { force: true } : {}),
+      });
 
       const readRange = args.range?.trim();
       if (readRange) parseA1(readRange);

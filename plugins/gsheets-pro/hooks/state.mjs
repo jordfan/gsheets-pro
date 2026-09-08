@@ -205,12 +205,32 @@ export function readRegistry(cwd) {
   }
 }
 
-/** The registry entry for whichever spreadsheet a tool call names, if any. */
+/**
+ * The registry entry for whichever spreadsheet a tool call names, if any.
+ *
+ * A per-tab entry under `sheets` is merged over the spreadsheet's own, most
+ * specific wins, the same order the server resolves. That matters for
+ * `read_only`: a workbook is often perfectly writable except for one finished
+ * historical tab, and the hook has to see that tab's rule rather than the
+ * workbook's silence.
+ */
 export function registryEntryFor(registry, toolInput) {
   const id = toolInput?.spreadsheet_id ?? toolInput?.spreadsheetId ?? toolInput?.id;
   if (!id) return null;
   const entry = registry[id];
-  return entry ? { id, ...entry } : null;
+  if (!entry) return null;
+
+  const wanted = String(toolInput?.sheet ?? "").trim().toLowerCase();
+  let perSheet = null;
+  if (wanted && entry.sheets && typeof entry.sheets === "object") {
+    for (const [name, policy] of Object.entries(entry.sheets)) {
+      if (String(name).trim().toLowerCase() === wanted) {
+        perSheet = policy;
+        break;
+      }
+    }
+  }
+  return { id, ...entry, ...(perSheet ?? {}) };
 }
 
 /** Emit a hook result and exit cleanly. Silence is a valid result. */

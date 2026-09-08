@@ -177,7 +177,8 @@ function main() {
       (existsSync(registry)
         ? "  The registry at .claude/gsheets-pro.json is already here, so protected spreadsheets are known.\n"
         : "  Add .claude/gsheets-pro.json listing the spreadsheets other people own, so writes into their\n" +
-          "  columns are refused. references/existing-sheets.md has the shape.\n") +
+          "  columns are refused, and mark any reference sheet read_only so nothing writes to it at all.\n" +
+          "  references/existing-sheets.md has the shape.\n") +
       "  Commit .claude/. A scheduled run gets a fresh clone, so anything uncommitted is not there.\n" +
       "\nThe reviewer agent and the setup and review skills stay plugin-only. They are for\n" +
       "interactive work, and a scheduled run has no use for them.\n",
