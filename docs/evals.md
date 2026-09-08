@@ -110,7 +110,7 @@ most useful test in this whole piece of work, because the render caught four
 defects that a clean lint did not.
 
 The sheet it produces is at
-`https://docs.google.com/spreadsheets/d/1gb6o6sLgyi8flLMtlvufPhkQfPERDYtY7BS2ZJNzHPQ/edit`,
+`https://docs.google.com/spreadsheets/d/1HII7AoE8OBxEUu1_cxlEa8XHpdvJpb-MVGuZCwBu0hE/edit`,
 built 2026-09-07, and the render it kept is `docs/images/golden-roster.png`. It
 needs sharing view-only before the README or the skill points at it. Rerunning
 the script makes a new spreadsheet rather than updating that one, so the link in
