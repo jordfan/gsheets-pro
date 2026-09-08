@@ -52,7 +52,12 @@ import { parseColorStyle, type ColorStyle } from "../lib/colors.js";
 import { METADATA_KEYS, toMetadataEntries, type MetadataEntry } from "../lib/contract.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { buildFieldMask, pruneUndefined } from "../lib/fieldmask.js";
-import { describeCheck, runGate, withinGateCap, type CheckResult } from "../lib/gate.js";
+import {
+  describeCheck,
+  runErrorGate,
+  withinGateCap,
+  type GateCheck,
+} from "../lib/errorgate.js";
 import { resolveNumberFormat } from "../lib/numfmt.js";
 import type { Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
@@ -463,15 +468,15 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
         const bounds = safeBounds(range);
         return bounds ? withinGateCap(bounds) : false;
       });
-      const check: CheckResult =
+      const check: GateCheck =
         args.check === false || gateRanges.length === 0
-          ? await runGate(ctx.sheets as never, spreadsheetId, [], {
+          ? await runErrorGate(ctx.sheets as never, spreadsheetId, [], {
               skip:
                 args.check === false
                   ? "check was false."
                   : "Styling does not change what a cell computes, and no bounded range was styled, so nothing was read back. Run sheets_check before calling the work done.",
             })
-          : await runGate(ctx.sheets as never, spreadsheetId, gateRanges);
+          : await runErrorGate(ctx.sheets as never, spreadsheetId, gateRanges);
 
       const structured: Record<string, unknown> = {
         spreadsheet_id: spreadsheetId,
@@ -491,7 +496,7 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
           compiled && wantsTheme
             ? `Colors that name a theme slot were written as theme references, so changing Format > Theme re-skins them.`
             : undefined,
-          check.skipped ? undefined : describeCheck(check),
+          check.status === "skipped" ? undefined : describeCheck(check),
           warnings.length ? `\nWorth knowing:\n${warnings.map((w) => `- ${w}`).join("\n")}` : undefined,
         ),
         structured,

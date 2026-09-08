@@ -61,7 +61,12 @@ import {
   type SheetContract,
 } from "../lib/contract.js";
 import { err, GsheetsError } from "../lib/errors.js";
-import { describeCheck, runGate, withinGateCap, type CheckResult } from "../lib/gate.js";
+import {
+  describeCheck,
+  runErrorGate,
+  withinGateCap,
+  type GateCheck,
+} from "../lib/errorgate.js";
 import { normalizeHeaders, type CellValue } from "../lib/records.js";
 import { describeSheet, isColumnWritable, type Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
@@ -336,12 +341,12 @@ export function createWriteTool(deps: ToolDeps): ToolDefinition<typeof writeInpu
         const bounds = safeParse(r);
         return bounds ? withinGateCap(bounds) : false;
       });
-      const check: CheckResult =
+      const check: GateCheck =
         args.check === false
-          ? await runGate(ctx.sheets as never, spreadsheetId, [], {
+          ? await runErrorGate(ctx.sheets as never, spreadsheetId, [], {
               skip: "check was false, so this write did not read itself back. Run sheets_check, or the last write of the build, before calling the work done.",
             })
-          : await runGate(ctx.sheets as never, spreadsheetId, gateRanges);
+          : await runErrorGate(ctx.sheets as never, spreadsheetId, gateRanges);
 
       const structured: Record<string, unknown> = {
         spreadsheet_id: spreadsheetId,

@@ -3,7 +3,12 @@
  */
 import { describe, expect, test } from "vitest";
 
-import { describeCheck, runErrorGate, type GateCapableSheets } from "../src/lib/errorgate.js";
+import {
+  describeCheck,
+  runErrorGate,
+  withinGateCap,
+  type GateCapableSheets,
+} from "../src/lib/errorgate.js";
 
 interface FakeCell {
   formula?: boolean;
@@ -123,5 +128,58 @@ describe("runErrorGate", () => {
     const api = fakeApi({ Roster: [[{}]] });
     await runErrorGate(api, "sheet-id", ["'Roster'!A1", "'Roster'!A1", "  "]);
     expect(api.ranges[0]).toEqual(["'Roster'!A1"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The two additions sheets_write and sheets_style need
+// ---------------------------------------------------------------------------
+
+describe("skipping on purpose", () => {
+  test("a skip reason is carried through rather than dropped", async () => {
+    let calls = 0;
+    const api = {
+      spreadsheets: {
+        async get() {
+          calls += 1;
+          return { data: {} };
+        },
+      },
+    };
+    const check = await runErrorGate(api as never, "sheet-id", ["'Roster'!A1:C3"], {
+      skip: "check was false, so this write did not read itself back.",
+    });
+
+    expect(check.status).toBe("skipped");
+    expect(check.note).toContain("check was false");
+    // A response that simply omits the check reads identically to one that
+    // passed, which is the failure this avoids.
+    expect(describeCheck(check)).toContain("check was false");
+    expect(calls).toBe(0);
+  });
+});
+
+describe("withinGateCap", () => {
+  test("an open ended range is never worth reading back", () => {
+    expect(withinGateCap({ startColumnIndex: 1, endColumnIndex: 2 })).toBe(false);
+    expect(withinGateCap({ startRowIndex: 0, endRowIndex: 10 })).toBe(false);
+  });
+
+  test("an ordinary block is", () => {
+    expect(
+      withinGateCap({ startRowIndex: 0, endRowIndex: 80, startColumnIndex: 0, endColumnIndex: 6 }),
+    ).toBe(true);
+  });
+
+  test("a whole large sheet is not", () => {
+    expect(
+      withinGateCap({ startRowIndex: 0, endRowIndex: 50_000, startColumnIndex: 0, endColumnIndex: 26 }),
+    ).toBe(false);
+  });
+
+  test("the cap is adjustable", () => {
+    const bounds = { startRowIndex: 0, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 10 };
+    expect(withinGateCap(bounds, 99)).toBe(false);
+    expect(withinGateCap(bounds, 100)).toBe(true);
   });
 });

@@ -68,7 +68,7 @@ describe("mode range", () => {
     expect(calls.valuesBatchUpdate).toHaveLength(1);
     expect(tabs.get("roster")!.grid[1][1]).toBe("4");
     const structured = response.structuredContent as { check: { status: string } };
-    expect(structured.check.status).toBe("success");
+    expect(structured.check.status).toBe("ok");
   });
 
   test("USER_ENTERED is the default, so a formula stays a formula", async () => {
@@ -551,8 +551,9 @@ describe("dry_run and check", () => {
   test("check false skips the read back and says the work is not verified", async () => {
     const { run } = tool();
     const response = await run({ ...base, range: "B2", values: [["4"]], check: false });
-    const check = (response.structuredContent as { check: { skipped?: string } }).check;
-    expect(check.skipped).toContain("sheets_check");
+    const check = (response.structuredContent as { check: { status: string; note?: string } }).check;
+    expect(check.status).toBe("skipped");
+    expect(check.note).toContain("sheets_check");
   });
 
   test("the gate reports an error the sheet already had in the written range", async () => {
@@ -562,7 +563,7 @@ describe("dry_run and check", () => {
     const response = await run({ ...base, range: "B2", values: [["4"]] });
     const check = (response.structuredContent as { check: { status: string } }).check;
     expect(check.status).toBe("errors_found");
-    expect(response.content[0].text).toContain("before calling the work done");
+    expect(response.content[0].text).toContain("Check: 1 error(s)");
   });
 });
 

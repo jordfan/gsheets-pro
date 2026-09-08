@@ -19,6 +19,7 @@
  */
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 
+import { withRetry } from "../../src/lib/batch.js";
 import { getContext, type Context } from "../../src/lib/client.js";
 import { isFailure, errorOf, type ToolResponse } from "../../src/lib/result.js";
 import { createStyleTool } from "../../src/tools/style.js";
@@ -32,11 +33,12 @@ const suite = SPREADSHEET ? describe : describe.skip;
 
 /**
  * Sheets allows sixty reads a minute per user and each case here spends
- * several. Without a pause the suite crosses that line partway through and the
- * failures look like tool bugs rather than like quota, which cost an hour once
- * already.
+ * several: three or four inside the tool, one or two more to read the result
+ * back. Without a pause the suite crosses that line partway through, and the
+ * failures then read as tool bugs rather than as quota, which cost an hour
+ * once already. Leave a minute between runs for the same reason.
  */
-const QUOTA_PAUSE_MS = 1_500;
+const QUOTA_PAUSE_MS = 3_000;
 
 let context: Context;
 let write: (args: Record<string, unknown>) => Promise<ToolResponse>;
@@ -110,12 +112,18 @@ beforeEach(async () => {
 
 const base = () => ({ spreadsheet_id: SPREADSHEET!, sheet: WRITE_TAB });
 
+/**
+ * The tools back off on a 429 by themselves; the assertions have to as well,
+ * or a quota blip surfaces as a failed expectation with no hint of its cause.
+ */
 async function readBack(range: string, render = "FORMATTED_VALUE"): Promise<unknown[][]> {
-  const response = await context.sheets.spreadsheets.values.batchGet({
-    spreadsheetId: SPREADSHEET!,
-    ranges: [range],
-    valueRenderOption: render as never,
-  });
+  const response = await withRetry(() =>
+    context.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: SPREADSHEET!,
+      ranges: [range],
+      valueRenderOption: render as never,
+    }),
+  );
   return (response.data.valueRanges?.[0]?.values ?? []) as unknown[][];
 }
 

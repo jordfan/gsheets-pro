@@ -17,7 +17,7 @@
  * short while for it and then reports `pending` rather than crying wolf.
  */
 
-import { columnIndexToLetter } from "./a1.js";
+import { columnIndexToLetter, rangeCellCount, type NullableBounds } from "./a1.js";
 import { withRetry } from "./batch.js";
 
 /** The `ErrorValue.type` enum, as of discovery revision 20260831. */
@@ -94,9 +94,34 @@ export interface GateOptions {
   now?: () => number;
   loadingBudgetMs?: number;
   maxRanges?: number;
+  /**
+   * Do not read anything, and say why in these words.
+   *
+   * `sheets_write` takes `check: false` for the interior writes of a build,
+   * where only the last one needs to answer. The reason is carried through
+   * rather than dropped, because a response that simply omits the check reads
+   * identically to one that passed.
+   */
+  skip?: string;
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Past this many cells a re-read costs more than it teaches. */
+export const MAX_GATE_CELL_COUNT = 20_000;
+
+/**
+ * Is this range small enough, and bounded enough, to be worth reading back?
+ *
+ * An open-ended range like `B:B` covers the whole column, so re-reading it
+ * would pull the entire sheet to check a formatting change. The tools that can
+ * touch an unbounded range consult this and say they skipped rather than
+ * quietly reading a million cells.
+ */
+export function withinGateCap(bounds: NullableBounds, cap = MAX_GATE_CELL_COUNT): boolean {
+  const cells = rangeCellCount(bounds);
+  return cells !== undefined && cells <= cap;
+}
 
 /**
  * Re-read the touched ranges and report their health.
@@ -112,6 +137,18 @@ export async function runErrorGate(
   ranges: string[],
   options: GateOptions = {},
 ): Promise<GateCheck> {
+  if (options.skip) {
+    return {
+      status: "skipped",
+      total_formulas: 0,
+      total_errors: 0,
+      error_summary: {},
+      cells: [],
+      ranges: [],
+      note: options.skip,
+    };
+  }
+
   const unique = [...new Set(ranges.filter((r) => typeof r === "string" && r.trim() !== ""))];
   if (unique.length === 0) {
     return {
