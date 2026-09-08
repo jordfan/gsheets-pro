@@ -17,3 +17,4 @@ spikes/.secrets/
 spikes/node_modules/
 spikes/out/
 token.json
+spikes/package-lock.json
