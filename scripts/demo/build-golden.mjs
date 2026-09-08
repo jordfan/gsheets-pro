@@ -22,8 +22,13 @@
  * pass in and no way to point it at something that matters by mistake. The one
  * file it writes is the render, at docs/images/golden-roster.png.
  *
- * Roughly a dozen API calls, well inside the sixty-a-minute quota, but it does
- * share that quota with the live vitest suite. Do not run both at once.
+ * Roughly fifteen API calls, inside the sixty-a-minute quota, but it does share
+ * that quota with the live vitest suite. Do not run both at once.
+ *
+ * **Do not wrap this in a retry loop.** It creates a spreadsheet as its first
+ * call, so a loop that retries any non-zero exit leaves one orphan per attempt.
+ * A quota failure is worth waiting a minute and running again by hand; anything
+ * else is a bug to read, not to retry. Twelve orphans were made learning this.
  */
 
 import { spawn } from "node:child_process";
