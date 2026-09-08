@@ -530,6 +530,21 @@ async function buildRequests(
         : { deleteDimension: { range: dimensionRange(info!.sheetId, "COLUMNS", span) } };
       const n = span.endIndex - span.startIndex;
       const label = `${columnIndexToLetter(span.startIndex)}${n > 1 ? `:${columnIndexToLetter(span.endIndex - 1)}` : ""}`;
+      // The registry names columns by letter, and an insert to their left
+      // renumbers them. The file cannot notice that on its own, so the person
+      // who reads this response is the only one who can fix it.
+      if (inserting && policy?.writableColumns?.length) {
+        const shifted = policy.writableColumns.filter(
+          (entry) => /^[A-Za-z]{1,3}(:[A-Za-z]{1,3})?$/.test(entry.trim()) && shiftsPast(entry, span),
+        );
+        if (shifted.length) {
+          warnings.push(
+            `${describeSheet(policy)} names ${shifted.join(", ")} as writable by column letter, and this insert moves ${
+              shifted.length === 1 ? "that column" : "those columns"
+            } one letter to the right. Update ${policy.path} to match, or the reservation now covers a colleague's column.`,
+          );
+        }
+      }
       return {
         requests: [request],
         gateRanges: [wholeTab],
@@ -978,6 +993,15 @@ function guardWritableColumns(
       `${describeSheet(policy)} lists ${policy.writableColumns.join(", ")} as ours. Deleting columns renumbers every column to the right of them, so it moves a colleague's columns whether or not it deletes them. Clear the values instead, or take the reservation out of the registry entry.`,
       { policy: policy.path, columns: letters },
     );
+  }
+}
+
+/** True when an insert at `span` renumbers the columns a registry entry names. */
+function shiftsPast(entry: string, span: Span): boolean {
+  try {
+    return parseColumnSpan(entry).startIndex >= span.startIndex;
+  } catch {
+    return false;
   }
 }
 

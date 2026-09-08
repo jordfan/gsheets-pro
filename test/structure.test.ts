@@ -431,6 +431,26 @@ describe("registry refusals", () => {
     expect(calls.batchUpdate).toHaveLength(0);
   });
 
+  test("inserting left of a reserved column says the registry letters moved", async () => {
+    const { response } = await run(
+      { action: "insert_columns", sheet: "Roster", columns: "A" },
+      BOOK,
+      { registryJson: COLUMN_REGISTRY },
+    );
+    expect(isFailure(response)).toBe(false);
+    expect(response.content[0].text).toContain("one letter to the right");
+    expect(response.content[0].text).toContain("A:C");
+  });
+
+  test("inserting to the right of the reserved columns says nothing about them", async () => {
+    const { response } = await run(
+      { action: "insert_columns", sheet: "Roster", columns: "E" },
+      BOOK,
+      { registryJson: COLUMN_REGISTRY },
+    );
+    expect(response.content[0].text).not.toContain("one letter to the right");
+  });
+
   test("a shared sheet gets a line saying a colleague will see the change", async () => {
     const { response } = await run(
       { action: "rename_tab", sheet: "Roster", title: "Schedule" },
