@@ -232,17 +232,21 @@ plain text, so a rendered PNG of a clipped chip column looks perfectly fine.
 This is the only defect in the whole exercise that the verify loop could not
 have caught, and the only one found by opening the spreadsheet like a person.
 
-About a third more width than autofit gives is what the pill needs. Measured,
-not estimated: Teacher went from roughly 85 pixels to 110, Status from roughly
-230 to 300, each read back off the browser until every chip showed in full. 240
-was not enough for Status, which is the sort of thing only looking tells you.
+Every number here was read off the browser, and the interesting part is how many
+passes it took. Teacher settled at 110 against an autofit of about 85. Status
+needed three tries: 240 still clipped, 300 still clipped, 330 is right, against
+an autofit of about 230. So a chip wants closer to **half again** the width the
+words do, not the third a first look suggests, and the gap grows with the
+longest option rather than staying proportional.
 
 Two changes follow:
 
-- **A style-guide rule.** A column of dropdown values gets about a third more
-  width than its text needs, because the chip is wider than the words. It
-  belongs in `references/style-guide.md` immediately after the autofit rule from
-  finding 4, because it is the exception to it and the two are read together.
+- **A style-guide rule.** A column of dropdown values needs roughly half again
+  the width its text does, because the chip is wider than the words. State it as
+  a starting point to check rather than a formula to trust: the only reliable
+  test is opening the sheet. It belongs in `references/style-guide.md`
+  immediately after the autofit rule from finding 4, because it is the exception
+  to it and the two are read together.
 - **A limitation worth stating plainly.** The verify loop is blind to chip
   rendering: `sheets_check` cannot see width and `sheets_render` paints
   dropdowns as text, so a clipped chip column passes both and fails a human.

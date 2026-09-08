@@ -457,15 +457,19 @@ async function build() {
   // horizontal padding, and room for the arrow. Autofit measures the text and
   // nothing else, so it sizes the column to the words and the pill is then
   // clipped. It is invisible in a render, where dropdowns paint as plain text
-  // and look fine, and obvious the moment anyone opens the sheet. Roughly a
-  // third more than autofit gives is what the pill needs; these two numbers
-  // were read off the browser, not estimated.
+  // and look fine, and obvious the moment anyone opens the sheet.
+  //
+  // Both numbers were read off the browser rather than computed, and it took
+  // three passes: 240 still clipped Status, and so did 300. Autofit gives that
+  // column about 230, so the pill wants closer to half as much again as the
+  // words do, not the third a first look suggests. If the status wording
+  // changes, check it in the browser again rather than scaling these.
   await call("sheets_style", {
     spreadsheet_id: id,
     sheet: "Roster",
     column_widths: [
       { columns: "D:D", pixels: 110 }, // Teacher, longest chip "N. Okafor"
-      { columns: "F:F", pixels: 300 }, // Status, longest chip is 36 characters
+      { columns: "F:F", pixels: 330 }, // Status, longest chip is 36 characters
     ],
   });
 
