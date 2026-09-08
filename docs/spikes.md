@@ -90,25 +90,41 @@ That colored text is what made spike 4 answerable at all.
 pages, and page 2 carries the styled header row above the data. Worth keeping in
 the default parameters.
 
-**The export can brand a native Table's header row, and that is the second thing
-the picture is not truthful about.** Building the golden demo produced a render
-in which every header read `Student [1]`, `Guardian email [2]`, through
-`Check [10]`, each with a column-type icon beside it. Read back from the live
-spreadsheet, the header cells hold exactly `Student` through `Check` and the
-Table's `columnProperties` hold the same ten names. The index and the icons are
-painted by the export, not stored anywhere.
+**Cell notes render as endnotes, with a bracketed reference on the cell.** A
+noted cell is painted with its text plus a marker, `Instructor [1]`, and the
+note bodies are printed as a numbered list on a page of their own after the
+grid.
 
-It is conditional and the condition is not isolated. The Table in this spike
-renders clean, with a type icon on its dropdown column only, and it is a native
-Table with typed columns created the same way. So something other than "is it a
-Table" decides whether the export paints full header chrome. The untested
-candidates, in the order worth trying, are the header notes the plugin writes,
-the warning-only header protection, the frozen header, and a preset repaint of
-the header row. Four renders varying one flag at a time would settle it.
+This surfaced as an apparent defect. The golden demo's render showed every
+header as `Student [1]` through `Check [10]`, which reads like the export
+branding Table columns with an index. It is not that. The plugin puts a note on
+every Table header cell saying what belongs in that column, so every header gets
+a reference marker and the tab renders two pages instead of one.
 
-Until it is settled: a render is for the agent's own eyes, and a picture of a
-Table-based sheet that is going in front of people should be a browser
-screenshot, which shows what a colleague actually sees.
+Spike 7 isolates it: five tabs, each an identical native Table over identical
+written headers, differing by exactly one addition. Nothing, header notes, a
+warning-only protection over the header row, a frozen header, a repaint of the
+header row. Only the notes tab brands, and it is the only one that renders a
+second page. `spikes/out/spike7-notes-1.png` has the markers,
+`spike7-notes-2.png` is the endnote list, and `spike7-base-1.png`,
+`spike7-protect-1.png`, `spike7-freeze-1.png` and `spike7-repaint-1.png` are all
+clean. Script: `spikes/spike7-table-header-brand.mjs`.
+
+So it is not Table-specific, and the export is not inventing anything. It is
+real content rendered the way a printed document renders footnotes, and the same
+happens to a note on any cell. Three consequences:
+
+- **A tab with notes renders one more page than its grid needs.** Anything that
+  keeps only page one silently drops the notes, and anything that treats the
+  extra page as overflow is wrong. `sheets_render` should say so.
+- **A render of a well-documented sheet does not look like the sheet.** The
+  house style puts a note on every header, so the sheets the plugin should be
+  proudest of are exactly the ones whose renders read oddly. A picture going in
+  front of people wants to be a browser screenshot; the render is for the
+  agent's own eyes.
+- **For the agent the markers are a feature.** They are how a render shows that
+  documentation exists at all, and page two is the only way to read a note
+  without spending another call.
 
 ### The URL template in the plan returns 400
 
@@ -459,19 +475,13 @@ asserting both return a result.
 
 ## The spike spreadsheet
 
-One disposable spreadsheet titled **gsheets-pro spike (safe to delete)** holds
-every tab these spikes created. Tabs: `Spike1 Render`, `Spike1 Long`,
-`Spike3 Tables`, `Spike3b NoFooter`, `Spike3b Footer`, `Spike3c v1` to `v4`,
-`Spike4 Chips`, `Spike5 Metadata`, `Spike5b Masks`. All data in it is invented.
+Every tab these spikes created lives in one disposable spreadsheet, whose id the
+scripts keep to themselves in `spikes/out/state.json` and create on first run.
+Tabs: `Spike1 Render`, `Spike1 Long`, `Spike3 Tables`, `Spike3b NoFooter`,
+`Spike3b Footer`, `Spike3c v1` to `v4`, `Spike4 Chips`, `Spike5 Metadata`,
+`Spike5b Masks`, `Spike7 base` to `Spike7 repaint`. All data in it is invented.
 
-```
-https://docs.google.com/spreadsheets/d/17cxldiVI3brpJaWc3pBylTauKa7Vii7w8MDkMw_vR-Y/edit
-```
-
-Every spike is now resolved, so nothing depends on this sheet any more and it can
-be deleted whenever Jordan likes. The one reason to keep it a little longer is
-that `Spike4 Chips` is the only place a human-colored dropdown exists, which
-makes it a convenient fixture if the chip question ever needs re-testing.
-
-**Delete this section before publication.** The Phase 7 gate greps for
-spreadsheet ids, and this one would trip it.
+Every spike is resolved, so nothing depends on it and it can be deleted at any
+time. The one reason to keep it is `Spike4 Chips`, the only place a
+human-coloured dropdown exists, which makes it a convenient fixture if the chip
+question ever needs re-testing. Deleting it costs nothing but a re-run.

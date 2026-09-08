@@ -181,46 +181,41 @@ prose a fixed width and `wrap`.** Autofitting a column of sentences makes it
 wider than the page; hand-sizing a column of values is guesswork that goes stale
 the first time somebody adds a longer name.
 
-**5. The export brands native Table headers with a column index, and the sheet
-itself is clean.** Every header in the render came out as `Student [1]`,
-`Guardian email [2]`, through `Check [10]`, and every header also carried a
-column-type icon.
+**5. Every header rendered as `Student [1]`, and the cause is the plugin's own
+header notes.** The export renders a cell note as an endnote: a bracketed
+reference appended to the cell's text, and the note bodies listed on an extra
+page after the grid. `sheets_table` puts a note on every header cell, so every
+header gets a marker.
 
-The sheet does not contain any of that. Read back from the live spreadsheet, the
-header cells hold exactly `Student`, `Guardian email`, `Instrument`, `Teacher`,
-`Length`, `Status`, `Lessons`, `Term fee`, `Lesson override`, `Check`, and the
-Table's own `columnProperties` hold the same ten names. The brackets and the
-icons are added by Google's PDF export when it paints a native Table's header
-row. Nothing in `src/tools/table.ts` or in the demo produces them.
+Nothing is stored in the sheet. The header cells hold `Student` through `Check`
+and the Table's `columnProperties` hold the same ten names, both read back from
+the live spreadsheet. Spike 7 isolates the cause across five otherwise identical
+Tables, and only the one with header notes brands, which is also the only one
+that renders a second page. Written up under spike 1 in `docs/spikes.md`.
 
-**This is conditional, and the condition is not isolated.**
-`spikes/out/spike3-tables-1.png` is a render of a native Table with typed
-columns, created by a raw `addTable` in spike 3, and its headers are clean. It
-also shows a type icon on the dropdown column only, where the golden render
-shows one on all ten. So the export applies full Table header chrome to one and
-not the other, and the difference is something other than "is it a Table".
-Untested candidates, in the order worth trying: the header notes the plugin
-writes, the warning-only header protection, the frozen header, and the preset
-repaint of the header row. Settling it is four renders varying one flag at a
-time, and it is worth doing before anyone relies on a render of a Table for
-anything but their own eyes.
+Two earlier readings of this were wrong and are worth naming, because both were
+plausible and both would have sent someone to fix the wrong thing. It is not a
+blank header cell, which was the first guess. It is not the export branding
+native Tables, which was the second. It is footnotes, and it would happen to a
+note on any cell in any sheet.
 
 What follows:
 
-- Nothing to fix in the tool or the script. An earlier revision of this
-  document blamed a blank header cell and it was wrong: the four columns the
-  demo did not seed had header text by render time and the branding happened
-  anyway.
+- Nothing to fix in the tool or the script. The behaviour is correct and the
+  content is real.
 - The demo writes all ten headers before creating the Table regardless. Naming a
   column and then relying on something else to write that name into the cell is
   fragile whether or not it caused this.
+- **`sheets_render` should say that a noted tab renders an extra page**, because
+  a caller that keeps only page one silently discards the notes, which is what
+  `scripts/demo/build-golden.mjs` does deliberately and what anyone else would
+  do by accident.
 - The render caveat in the skill should say it. The skill already tells the
-  model that a render is truthful about formatting with dropdowns as the one
-  exception. Table headers are a second exception: what the picture shows is not
-  what a colleague opening the spreadsheet sees. A screenshot of the browser is
-  the honest artefact for a Table-based sheet, and `sheets_render` stays the
-  agent-facing tool.
-
+  model a render is truthful about formatting with dropdowns as the one
+  exception. Notes are a second: a well-documented sheet, which is what the
+  house style asks for, is exactly the sheet whose render reads oddly. A browser
+  screenshot is the honest artefact for anything going in front of people, and
+  `sheets_render` stays the agent-facing tool.
 
 One thing worked exactly as designed and is worth recording. The render is
 truthful about API-created dropdowns being invisible, so the picture gave no
