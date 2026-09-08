@@ -21,11 +21,21 @@ It cannot read or write a comment thread, so it also cannot see a question
 somebody left in one.
 
 **Dropdown chip colors.** No data validation rule carries a color field in the
-API, in either direction. Colors set through the interface cannot be read and
-cannot be written. This is why the plugin reports a rule it did not create as
-`ui_owned` and refuses to rewrite it without `force`: rewriting would silently
-discard a colleague's colors with no way to restore them. A conditional format
-rule can emulate the look on a sheet the plugin built.
+API, in either direction. The only keys a rule returns are `condition`,
+`strict`, and `showCustomUi`. Colors set through the interface cannot be read
+and cannot be written.
+
+**Rewriting such a rule destroys them.** This was measured, with renders before
+and after: re-applying `setDataValidation` with a condition identical to the one
+already there wiped the colors a person had set by hand. Not changed, wiped, and
+unrecoverable, because they were never readable in the first place, so nothing
+could have saved them first.
+
+That is why the plugin reports a rule it did not create as `ui_owned` and
+refuses to rewrite it without `force`. When a dropdown needs a new option on a
+sheet somebody else colored, say so and let a person add it. On a sheet the
+plugin built, a conditional format rule emulates the look and survives being
+rewritten.
 
 **Data tables and what-if analysis.** Not supported.
 
@@ -75,12 +85,20 @@ expected: fills, fonts, borders, banding, merges, column widths, and
 conditional-format rules all come through, a conditional fill correctly overrides
 the banding beneath it, and a frozen header repeats on every page.
 
-**Dropdowns are the one thing it never paints.** A validation rule created
-through the API renders as plain cell text, with no pill and no arrow, whether
-it came from a Table column typed `DROPDOWN` or from `sheets_validation`. So a
-render can never confirm that a dropdown exists, and a bare-looking cell in an
-image is not evidence of a missing rule. `sheets_check` is authoritative for
-validation state.
+**No dropdown ever renders as a pill**, but what does render depends on who made
+the rule:
+
+| The rule | How it renders |
+|---|---|
+| Created through the API | Plain black text. No pill, no arrow, no color |
+| Colored by hand in the interface | Colored text, still no pill |
+
+Two consequences. A render **can** confirm that a colleague's chip colors
+survived whatever you just did, which makes it a cheap check after any work near
+their dropdowns. A render **cannot** confirm that a rule exists, because an
+intact API-created dropdown is indistinguishable from no rule at all, so a
+bare-looking cell is not evidence of anything. `sheets_check` is authoritative
+for validation state.
 
 It returns a **file path locally, or a short-lived signed URL when hosted, never
 image bytes**. Read the file. Rendering needs `pdftoppm` from poppler on the

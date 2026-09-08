@@ -63,11 +63,19 @@ A render is truthful about formatting. Fills, fonts, borders, banding, merges,
 column widths, and conditional-format rules all paint, so a formatting problem
 you can see in the image is a real one.
 
-**Dropdowns are the exception: they never render as chips.** A validation rule
-shows as plain cell text, with no pill and no arrow. So never report a missing
-dropdown from looking at an image. Check `sheets_check` for validation state,
-and say in your report which findings came from the lint rather than from
-looking.
+**Dropdowns are the exception: none of them render as pills.** A rule the API
+created shows as plain black text, which looks exactly like a cell carrying no
+rule at all, so **never report a missing dropdown from an image**. Check
+`sheets_check` for validation state instead, and say in your report which
+findings came from the lint rather than from looking.
+
+One thing the image does tell you here, and it deserves a deliberate look. A
+dropdown **a person colored by hand** shows as colored text, still with no pill.
+So if this spreadsheet had colored dropdowns before the work you are reviewing,
+check that they are still colored. Rewriting a validation rule destroys those
+colors, and the API cannot read them back to restore them, so a column of
+dropdowns that has gone plain black is a real and unrecoverable finding. Put it
+at the top of the list.
 
 ## What to return
 

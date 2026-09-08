@@ -90,12 +90,17 @@ just not yet machine-checked, which means you are the check.
 
 ## What the lint sees that a render does not
 
-Only one thing, but it matters: **a dropdown never appears in a render.** A
-validation rule created through the API paints as plain cell text, with no pill
-and no arrow, whether it came from a Table column typed `DROPDOWN` or from
-`sheets_validation`. So a render can never confirm that a dropdown exists, and
-a bare-looking cell in an image is not evidence that anything is missing. The
-lint is authoritative for validation state.
+Only one thing, but it matters: **a render can never confirm that a dropdown
+exists.** No validation rule paints as a pill, and one the API created paints as
+plain black text, indistinguishable from a cell carrying no rule at all. So a
+bare-looking cell in an image is not evidence that anything is missing. The lint
+is authoritative for validation state.
+
+The near miss is worth knowing. A rule **a person colored by hand** paints as
+colored text, still with no pill. So an image does tell you whether a
+colleague's chip colors survived, even though it cannot tell you whether a rule
+is there. Those colors are the fragile thing in the whole system: rewriting the
+rule destroys them, and the API cannot read them back to put them right.
 
 Everything else in a render is trustworthy. It paints fills, fonts, borders,
 banding, merges, column widths, and conditional-format rules, including rules

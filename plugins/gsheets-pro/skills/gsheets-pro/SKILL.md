@@ -82,9 +82,10 @@ The tools refuse rather than guess, and the refusal names the fix:
   decide whether you meant to, then pass `force` if you did.
 - A write into a column the registry or the sheet's own metadata marks as
   human-owned.
-- Rewriting a data validation rule the plugin did not create. Chip colors set in
-  the Sheets interface cannot be read back through the API, so rewriting the
-  rule would silently discard them. The tool reports the rule as `ui_owned`.
+- Rewriting a data validation rule the plugin did not create. Rewriting one,
+  even with an identical condition, wipes the chip colors a person set by hand.
+  That is measured, not a worry, and the colors cannot be put back because the
+  API never exposed them. The tool reports the rule as `ui_owned`.
 - Any destructive structural change without a `confirm` string naming the sheet,
   and on a spreadsheet marked `positional_rows` these are refused outright
   because other people's formulas point at row numbers.
@@ -179,12 +180,20 @@ header repeats on every page. Trust your eyes on all of that, and on layout:
 truncated columns, awkward wraps, illegible contrast, a header that does not
 look like a header.
 
-The exception is **dropdowns, which never render as chips**. A validation rule
-created through the API shows as plain cell text, with no pill and no arrow,
-whether it came from a Table column typed `DROPDOWN` or from
-`sheets_validation`. So a missing chip in a render means nothing at all.
-`sheets_check` is authoritative for validation state. Confirm a dropdown there,
-and never re-create one because the picture looked bare.
+The exception is **dropdowns, which never render as pills**. What a render shows
+depends on who made the rule, and the difference is useful:
+
+- A rule **the API created** shows as plain black text. No pill, no arrow, no
+  color, whether it came from a Table column typed `DROPDOWN` or from
+  `sheets_validation`.
+- A rule **a person colored by hand** shows as colored text, still with no pill.
+
+So a render can confirm that somebody's chip colors are still there, which is
+worth checking after any work near their dropdowns. It can never confirm that a
+rule exists, because an intact API-created dropdown looks exactly like no rule
+at all. `sheets_check` is authoritative for validation state. Confirm a dropdown
+there, and never re-create one because the picture looked bare: re-creating it
+is what destroys the colors.
 
 ## References
 

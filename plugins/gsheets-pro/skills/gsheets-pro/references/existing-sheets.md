@@ -108,12 +108,21 @@ visible to everyone.
 
 ## Two things the API cannot round-trip
 
-**Dropdown chip colors.** Colors set on dropdown values through the Sheets
-interface cannot be read back through the API, and no validation rule carries a
-color field. So rewriting a rule that a person created discards their colors
-permanently. The plugin reports such a rule as `ui_owned` and refuses to rewrite
-it without `force`. When a dropdown needs a new option, say so and let a person
-add it, rather than recreating the rule.
+**Dropdown chip colors.** No validation rule carries a color field, so colors a
+person set on dropdown values in the Sheets interface cannot be read back
+through the API. Rewriting such a rule, even with a condition identical to the
+one already there, wipes those colors. That is measured rather than feared, and
+it is unrecoverable: nothing could have saved them first, because nothing could
+read them.
+
+So the plugin reports a rule it did not create as `ui_owned` and refuses to
+rewrite it without `force`. When a dropdown on somebody else's sheet needs a new
+option, say so and let a person add it. Recreating the rule to add one option
+costs them every color on that column.
+
+A render is a cheap way to check this after doing work near their dropdowns.
+Hand-colored options paint as colored text, so if a column has gone plain black,
+the colors are gone.
 
 **Anything only the interface can make.** Named functions, Apps Script,
 threaded comments, and a few chart types. `references/limitations.md` has the

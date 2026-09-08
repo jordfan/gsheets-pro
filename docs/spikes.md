@@ -15,13 +15,15 @@ Spike 2 (cloud sessions) is owned separately and is not covered here.
 |---|---|---|
 | 1 | Does the export URL render a tab, and does the picture tell the truth? | **Go**, with a URL correction and a simpler auth story |
 | 3 | Are native Tables usable the way the tool surface assumes? | **Go for `sheets_table`, no-go for two specific calls.** Two silent data-loss behaviors found |
-| 4 | Does rewriting a dropdown preserve UI-set chip colors? | **Pending on Jordan.** Setup is done, baseline captured, 60-second step below |
+| 4 | Does rewriting a dropdown preserve UI-set chip colors? | **Settled: it wipes them.** The plan's `ui_owned` rule is correct and now has evidence |
 | 5 | Is PROJECT-visibility developer metadata a usable contract carrier? | **Go**, and it is more durable than the plan assumed |
 | 6 | Does stateless HTTP hold under the aggregator's traffic? | **Go** |
 
-Two plan assumptions were wrong in the plugin's favor (metadata survives a copy;
-the render redirect needs no bearer). Two Tables behaviors were wrong against it
-and change the tool surface. Details below.
+All five spikes are resolved. Two plan assumptions were wrong in the plugin's
+favor (metadata survives a copy; the render redirect needs no bearer). Two Tables
+behaviors were wrong against it and change the tool surface. Spike 4 confirmed a
+rule the plan already had, which means no design change but a hard constraint to
+hold onto. Details below.
 
 ## Changes the plan needs
 
@@ -45,6 +47,10 @@ and change the tool surface. Details below.
 7. **The offline test suite needs a two-sequential-requests case** against one
    HTTP server. It is the only cheap assertion that catches transport reuse. See
    spike 6.
+8. **`ui_owned` must be decided by provenance, not by inspecting the rule.** A
+   human-styled dropdown is indistinguishable from a plugin-written one through
+   the API, so the plugin has to know which rules it created rather than trying
+   to detect styling. See spike 4.
 
 ## Spike 1, render: GO
 
@@ -62,13 +68,23 @@ plus a font color rather than a fill. Conditional fills correctly override the
 banding underneath them. Column widths are honored. This is good enough to be the
 eval grader's input and good enough for a README screenshot.
 
-**It does not paint dropdowns as chips.** An API-created `ONE_OF_LIST` rule with
-`showCustomUi: true` renders as plain cell text, with no pill and no dropdown
-arrow. The same is true of a native Table column typed `DROPDOWN`. So a render
-can confirm fills, fonts, borders, banding, merges, and widths, but it cannot
-confirm that a dropdown exists. Lint stays authoritative for validation state,
-and `sheets_render` should say so in its response rather than leaving the model
-to infer that a missing chip means a missing rule.
+**It never paints dropdowns as pills, but it does paint human-set chip colors as
+colored text.** Three cases, all confirmed by looking at renders:
+
+| Dropdown | How the export paints it |
+|---|---|
+| API-created `ONE_OF_LIST` with `showCustomUi: true` | plain black text, no pill, no arrow |
+| Native Table column typed `DROPDOWN` | plain black text, no pill, no arrow |
+| Human-styled in the UI with option colors and Chip display | text in the option's color, still no pill |
+
+So a render can prove that a rule carries human-set colors, because the status
+words come out green and red rather than black. It cannot prove that a dropdown
+exists at all, because an uncolored rule is pixel-identical to plain text. Lint
+stays authoritative for validation state, and `sheets_render` should say so in
+its response rather than leaving the model to infer that a missing pill means a
+missing rule.
+
+That colored text is what made spike 4 answerable at all.
 
 **`fzr=true` really does repeat the frozen header.** A 120-row tab exported to 4
 pages, and page 2 carries the styled header row above the data. Worth keeping in
@@ -216,41 +232,64 @@ produces a visibly patchy result. `sheets_table adopt` should detect explicit
 cell fills inside the range and either report them or offer to clear them, rather
 than assuming the band colors will win.
 
-## Spike 4, chip colors: pending on Jordan
+## Spike 4, chip colors: SETTLED, the rewrite wipes them
 
-**Script:** `spikes/spike4-chip-colors.mjs`, two phases.
+**Script:** `spikes/spike4-chip-colors.mjs`, two phases. Jordan performed the UI
+step on 2026-09-07 and `verify` ran against it.
 
-This is the one spike a person has to touch, because the Sheets API has no color
-field on any validation rule, so chip colors can only be set by hand.
+**Verdict: `setDataValidation` with a byte-identical condition destroys the
+option colors a human set in the UI.** The plan's rule that the plugin must never
+rewrite a `ui_owned` validation rule without `force` is correct and now has
+evidence behind it.
 
-Setup has run. The tab `Spike4 Chips` holds an API-created three-option dropdown
-and a captured baseline. Confirmed from that baseline: the only keys the API
-returns on a validation rule are `condition`, `strict`, and `showCustomUi`. There
-is no color, chip, or display-style field to read, so the verdict has to be
-settled visually. The "before" PNG shows the API-created dropdown rendering as
-plain text with no chip.
+The rewrite sent a condition built from the same constant the setup used, so it
+was provably identical to what the API had already written. The colors still went
+away.
 
-**The 60-second step for Jordan.** Open the spike spreadsheet (URL at the bottom
-of this file) and go to the tab named `Spike4 Chips`, then:
+### The evidence
 
-1. Click cell B2, then **Data > Data validation**.
-2. Click the rule in the side panel to open it.
-3. Give **two** of the three options a color: set **Confirmed** to green and
-   **Declined** to red. Leave **Pending** uncolored on purpose, as a control.
-4. Set **Display style** to **Chip**.
-5. Click **Done**.
+Three renders of the same six-row tab, in order:
 
-Then run `node spike4-chip-colors.mjs verify` from `spikes/`. It re-applies
-`setDataValidation` with a condition built from the same constant the setup used,
-so the rewrite is provably identical, and renders an "after" PNG beside the
-"before". If the colors are gone in the second, the plugin must never rewrite a
-`ui_owned` rule without `force`, exactly as the plan assumes.
+| PNG | What is visible |
+|---|---|
+| `spikes/out/spike4-before-ui-colors-1.png` | API-created dropdown. All six statuses in plain black text. |
+| `spikes/out/spike4-after-ui-colors-1.png` | After Jordan's edit. `Confirmed` renders green, `Declined` renders red, `Pending` stays black. |
+| `spikes/out/spike4-after-rewrite-1.png` | After the identical rewrite. All six statuses black again. Cell values unchanged. |
 
-One caveat on the method: spike 1 established that the PDF export does not paint
-chips for API-created dropdowns. If it also declines to paint human-set chip
-colors, the render will not be able to answer the question and the comparison
-will have to be made by eye in the Sheets UI instead. The script's `before` and
-`after` PNGs make that visible either way.
+`Pending` was deliberately left uncolored as a control, and it is black in all
+three, which is what makes the middle image readable as color rather than as a
+rendering artifact.
+
+### The dangerous part: the API reports almost nothing
+
+`spreadsheets.get` returns exactly three keys on a validation rule: `condition`,
+`strict`, and `showCustomUi`. No color, no chip, no display style. The colors are
+invisible to the API both before and after they are destroyed, so a plugin that
+rewrites a rule gets a success response and no indication that it just wiped a
+colleague's work.
+
+The one API-visible difference across the whole episode was **option order**.
+Before Jordan's edit the options read `Confirmed / Pending / Declined`, matching
+what the API wrote. After the edit they read `Confirmed / Declined / Pending`.
+The rewrite put them back to the API's order.
+
+That is not a usable detection signal. With a single trial there is no way to
+tell whether the reorder came from applying colors or from Jordan dragging the
+options while in the panel, and a human who colors options without reordering
+them would leave no trace at all. **So `ui_owned` cannot be inferred by
+inspecting a rule.** It has to come from provenance: the plugin knows which rules
+it created, through the registry and the column metadata, and treats everything
+else as human-owned. That is what the plan already does, and this spike says
+there is no cheaper shortcut available.
+
+### One thing this does not establish
+
+Whether the colors are lost on *any* `setDataValidation` touching that range, or
+only when the written condition differs in option order from the stored one, was
+not separated. The rewrite here did both at once: it wrote an identical condition
+and it reordered the options back. Since the plugin's rule is "never rewrite a
+human's rule without `force`" either way, the distinction does not change the
+design, but it should not be stated as known.
 
 ## Spike 5, metadata visibility: GO
 
@@ -388,15 +427,18 @@ asserting both return a result.
 ## The spike spreadsheet
 
 One disposable spreadsheet titled **gsheets-pro spike (safe to delete)** holds
-every tab these spikes created. It is left in place because spike 4 needs it.
-Tabs: `Spike1 Render`, `Spike1 Long`, `Spike3 Tables`, `Spike3b NoFooter`,
-`Spike3b Footer`, `Spike3c v1` to `v4`, `Spike4 Chips`, `Spike5 Metadata`,
-`Spike5b Masks`. All data in it is invented.
+every tab these spikes created. Tabs: `Spike1 Render`, `Spike1 Long`,
+`Spike3 Tables`, `Spike3b NoFooter`, `Spike3b Footer`, `Spike3c v1` to `v4`,
+`Spike4 Chips`, `Spike5 Metadata`, `Spike5b Masks`. All data in it is invented.
 
 ```
 https://docs.google.com/spreadsheets/d/17cxldiVI3brpJaWc3pBylTauKa7Vii7w8MDkMw_vR-Y/edit
 ```
 
+Every spike is now resolved, so nothing depends on this sheet any more and it can
+be deleted whenever Jordan likes. The one reason to keep it a little longer is
+that `Spike4 Chips` is the only place a human-colored dropdown exists, which
+makes it a convenient fixture if the chip question ever needs re-testing.
+
 **Delete this section before publication.** The Phase 7 gate greps for
-spreadsheet ids, and this one would trip it. Once spike 4 is settled the sheet
-can be thrown away and these three lines removed.
+spreadsheet ids, and this one would trip it.

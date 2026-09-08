@@ -325,11 +325,14 @@ Re-render only `Roster`, confirm it reads, and stop. One fix pass, not an
 open-ended polish loop.
 
 One thing in this image is misleading, and it is worth expecting. **Teacher,
-Length, and Status render as plain text, with no chips and no dropdown arrows.**
-Dropdowns never appear in a render. The rules are there, `sheets_check` confirms
-them, and the fills from the conditional rules do paint. Do not re-create a
-dropdown because the picture looked bare; that would rewrite a working rule for
-nothing.
+Length, and Status render as plain black text, with no pills and no dropdown
+arrows.** That is how every API-created dropdown renders, and it looks exactly
+like a cell carrying no rule at all. The rules are there, `sheets_check`
+confirms them, and the fills from the conditional rules do paint.
+
+Do not re-create a dropdown because the picture looked bare. Here it would
+rewrite a working rule for nothing. On a sheet where a colleague had colored the
+options by hand, it would destroy those colors permanently.
 
 ## What the finished sheet does that a script's output would not
 
