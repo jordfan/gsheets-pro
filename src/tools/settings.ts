@@ -28,6 +28,7 @@ import {
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
 import type { Context } from "../lib/client.js";
 import { describeCheck, runErrorGate } from "../lib/errorgate.js";
+import { recordWrite } from "../lib/writelog.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { METADATA_KEYS } from "../lib/contract.js";
 import { hasSheetRecord, presetFor, readMetadata, sheetRecord } from "../lib/metaread.js";
@@ -470,6 +471,14 @@ async function writeBlock(
 
   // Values went in, so read them back: a settings block often holds formulas.
   const reference = `${quoteSheetName(info.title)}!${layout.valueColumnA1}`;
+  if (args.dry_run !== true) {
+    recordWrite({
+      spreadsheetId: args.spreadsheet_id,
+      range: reference,
+      sheet: info.title,
+      tool: "sheets_settings",
+    });
+  }
   const check =
     args.dry_run === true
       ? undefined

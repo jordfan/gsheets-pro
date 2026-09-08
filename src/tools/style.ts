@@ -62,6 +62,7 @@ import { resolveNumberFormat } from "../lib/numfmt.js";
 import type { Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import { resolveSpreadsheetId, SPREADSHEET_ID_DESCRIPTION } from "../lib/spreadsheetid.js";
+import { recordWrite } from "../lib/writelog.js";
 import {
   compileTheme,
   loadPreset,
@@ -463,6 +464,17 @@ export function createStyleTool(deps: ToolDeps): ToolDefinition<typeof styleInpu
 
       const batch = await runBatchUpdate(ctx.sheets as never, spreadsheetId, requests);
       ctx.cache.invalidate(spreadsheetId);
+
+      // Formatting a human's column is still this session touching it, so it
+      // goes in the ledger even though the gate may decline to read it back.
+      for (const range of touchedRanges) {
+        recordWrite({
+          spreadsheetId,
+          range,
+          ...(args.sheet ? { sheet: args.sheet } : {}),
+          tool: "sheets_style",
+        });
+      }
 
       const gateRanges = touchedRanges.filter((range) => {
         const bounds = safeBounds(range);

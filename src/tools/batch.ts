@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import { runBatchUpdate } from "../lib/batch.js";
 import { describeCheck, runErrorGate, type GateCheck } from "../lib/errorgate.js";
+import { recordWrite } from "../lib/writelog.js";
 import { err } from "../lib/errors.js";
 import {
   resolveRequests,
@@ -146,6 +147,13 @@ export function createBatchTool(deps: ToolDeps): ToolDefinition<typeof batchInpu
 
       // Any of these can add, remove or rename a tab, so the name map is stale.
       ctx.cache.invalidate(spreadsheetId);
+
+      // The escape hatch skips the named tools' checks, which is exactly why
+      // what it touched has to reach the ledger: L14 is the last thing left
+      // that would notice a raw request landing in a colleague's column.
+      for (const range of resolved.touched) {
+        recordWrite({ spreadsheetId, range, tool: "sheets_batch" });
+      }
 
       let check: GateCheck | undefined;
       if (args.check !== false && changesValues && resolved.touched.length > 0) {

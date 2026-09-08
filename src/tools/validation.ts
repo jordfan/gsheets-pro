@@ -27,6 +27,7 @@ import {
   quoteSheetName,
 } from "../lib/a1.js";
 import { withRetry, runBatchUpdate } from "../lib/batch.js";
+import { recordWrite } from "../lib/writelog.js";
 import { buildCondition, CONDITION_KINDS, CONDITION_OPERATORS, describeCondition } from "../lib/conditions.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { columnRecords, readMetadata } from "../lib/metaread.js";
@@ -234,6 +235,17 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
       const result = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, [request], {
         dryRun: args.dry_run === true,
       });
+
+      // A validation rule changes what a colleague may type into their own
+      // column, so the ledger counts it the way it counts a value write.
+      if (args.dry_run !== true) {
+        recordWrite({
+          spreadsheetId: args.spreadsheet_id,
+          range: reference,
+          sheet: info.title,
+          tool: "sheets_validation",
+        });
+      }
 
       const description =
         rule === undefined

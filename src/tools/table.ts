@@ -35,6 +35,7 @@ import {
   type GridRange,
 } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
+import { recordWrite } from "../lib/writelog.js";
 import type { Context } from "../lib/client.js";
 import { fingerprintRule } from "../lib/cfrules.js";
 import { COLUMN_ROLES, METADATA_KEYS } from "../lib/contract.js";
@@ -243,6 +244,24 @@ export function createTableTool(deps: ToolDeps): ToolDefinition<typeof tableInpu
 // create
 // ---------------------------------------------------------------------------
 
+/**
+ * Put the Table's range in the session's write ledger.
+ *
+ * Creating, adopting, updating or deleting a Table changes typed columns,
+ * dropdowns, banding and header notes across a block a colleague may own.
+ * None of that leaves a mark saying who did it, so lint rule L14 reads this
+ * ledger instead.
+ */
+function recordTableRange(args: TableArgs, state: SheetState, range: GridRange | undefined): void {
+  if (args.dry_run === true || !range) return;
+  recordWrite({
+    spreadsheetId: args.spreadsheet_id,
+    range: `${quoteSheetName(state.title)}!${gridRangeToA1(range)}`,
+    sheet: state.title,
+    tool: "sheets_table",
+  });
+}
+
 async function createTable(
   ctx: Context,
   args: TableArgs,
@@ -389,6 +408,7 @@ async function createTable(
   );
 
   const followed = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, follow);
+  recordTableRange(args, state, range);
 
   const structured: Record<string, unknown> = {
     spreadsheet_id: args.spreadsheet_id,
@@ -494,6 +514,7 @@ async function adoptTable(
   const result = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, requests, {
     dryRun: args.dry_run === true,
   });
+  recordTableRange(args, state, range);
 
   // Spike 3: a cell a person filled by hand keeps that fill and overrides the
   // Table's band colour, so an adopted range can look patchy. Say so rather
@@ -651,6 +672,7 @@ async function updateTable(
   const result = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, requests, {
     dryRun: args.dry_run === true,
   });
+  recordTableRange(args, state, range);
 
   return ok(
     lines(
@@ -712,6 +734,7 @@ async function deleteTable(ctx: Context, args: TableArgs, state: SheetState): Pr
     [{ deleteTable: { tableId: existing.tableId } }],
     { dryRun: args.dry_run === true },
   );
+  recordTableRange(args, state, existing.range ? { ...existing.range, sheetId: state.sheetId } : undefined);
 
   return ok(
     lines(

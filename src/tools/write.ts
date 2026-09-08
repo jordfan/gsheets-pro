@@ -83,6 +83,7 @@ import {
   type SafeTextFinding,
 } from "../lib/safetext.js";
 import { resolveSpreadsheetId, SPREADSHEET_ID_DESCRIPTION } from "../lib/spreadsheetid.js";
+import { recordWrite } from "../lib/writelog.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
 /** How far down a tab the append and upsert paths look for the data's end. */
@@ -342,6 +343,13 @@ export function createWriteTool(deps: ToolDeps): ToolDefinition<typeof writeInpu
       // ---- the writes themselves ----
       const written = await execute(ctx, spreadsheetId, sheetName, plan, args);
       ctx.cache.invalidate(spreadsheetId);
+
+      // Every range this session wrote, whether or not the gate reads it back.
+      // Lint rule L14 asks what WE put in a human's column, and a value sitting
+      // there is no evidence either way: the human probably typed it.
+      for (const range of written.ranges) {
+        recordWrite({ spreadsheetId, range, sheet: sheetName, tool: "sheets_write" });
+      }
 
       const gateRanges = written.ranges.filter((r) => {
         const bounds = safeParse(r);

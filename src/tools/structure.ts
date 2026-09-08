@@ -39,6 +39,7 @@ import {
 } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
 import { describeCheck, runErrorGate, type GateCheck } from "../lib/errorgate.js";
+import { recordWrite } from "../lib/writelog.js";
 import { GsheetsError, err } from "../lib/errors.js";
 import { describeSheet, type Policy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
@@ -284,6 +285,12 @@ export function createStructureTool(deps: ToolDeps): ToolDefinition<typeof struc
       const replies = ((result.response as { replies?: unknown[] } | undefined)?.replies ?? []) as Array<
         Record<string, unknown>
       >;
+
+      // A sort or a find_replace rewrites cells this session did not choose
+      // one by one, so the ranges it touched are exactly what L14 needs.
+      for (const range of built.gateRanges) {
+        recordWrite({ spreadsheetId, range, tool: "sheets_structure" });
+      }
 
       let check: GateCheck | undefined;
       if (GATED_ACTIONS.includes(action) && built.gateRanges.length > 0) {

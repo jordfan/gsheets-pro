@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import { a1ToGridRange, gridRangeToA1, parseA1, quoteSheetName } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
+import { recordWrite } from "../lib/writelog.js";
 import {
   buildCellFormat,
   describeRule,
@@ -251,6 +252,7 @@ async function addRule(
     [{ addConditionalFormatRule: { rule, index } }],
     { dryRun: args.dry_run === true },
   );
+  recordRuleRanges(args, target, rule as never);
 
   const fingerprint = fingerprintRule(rule);
   return ok(
@@ -276,6 +278,31 @@ async function addRule(
   );
 }
 
+
+/**
+ * Put a rule's ranges in the session's write ledger.
+ *
+ * A conditional format paints a colleague's column without changing a value,
+ * which is precisely the case lint rule L14 exists for: nothing in the sheet
+ * says who applied it, so if this session did, the ledger has to be what
+ * remembers.
+ */
+function recordRuleRanges(
+  args: CfArgs,
+  target: SheetRules,
+  rule: { ranges?: Array<Record<string, unknown>> } | undefined,
+): void {
+  if (args.dry_run === true) return;
+  for (const range of rule?.ranges ?? []) {
+    recordWrite({
+      spreadsheetId: args.spreadsheet_id,
+      range: `${quoteSheetName(target.title)}!${gridRangeToA1(range as never)}`,
+      sheet: target.title,
+      tool: "sheets_conditional_format",
+    });
+  }
+}
+
 async function updateRule(
   ctx: Context,
   args: CfArgs,
@@ -299,6 +326,7 @@ async function updateRule(
     ],
     { dryRun: args.dry_run === true },
   );
+  recordRuleRanges(args, target, merged as never);
 
   return ok(
     lines(
@@ -339,6 +367,7 @@ async function deleteRule(
     [{ deleteConditionalFormatRule: { sheetId: target.sheetId, index: found.index } }],
     { dryRun: args.dry_run === true },
   );
+  recordRuleRanges(args, target, found.rule as never);
 
   return ok(
     lines(
