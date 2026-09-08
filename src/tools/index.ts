@@ -16,8 +16,10 @@ import { createOpenTool } from "./open.js";
 import { createReadTool } from "./read.js";
 import { createSettingsTool } from "./settings.js";
 import { createStructureTool } from "./structure.js";
+import { createStyleTool } from "./style.js";
 import { createTableTool } from "./table.js";
 import { createValidationTool } from "./validation.js";
+import { createWriteTool } from "./write.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
 export type AnyToolFactory = (deps: ToolDeps) => ToolDefinition<never>;
@@ -25,8 +27,10 @@ export type AnyToolFactory = (deps: ToolDeps) => ToolDefinition<never>;
 const FACTORIES = [
   createOpenTool,
   createReadTool,
+  createWriteTool,
   createTableTool,
   createSettingsTool,
+  createStyleTool,
   createValidationTool,
   createConditionalFormatTool,
   createStructureTool,
@@ -47,7 +51,9 @@ export {
   createReadTool,
   createSettingsTool,
   createStructureTool,
+  createStyleTool,
   createTableTool,
   createValidationTool,
+  createWriteTool,
 };
 export type { ToolDefinition, ToolDeps } from "./types.js";

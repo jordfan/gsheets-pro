@@ -32,6 +32,7 @@ import { err } from "../lib/errors.js";
 import { normalizeHeaders } from "../lib/records.js";
 import { describePolicy } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
+import { resolveSpreadsheetId, SPREADSHEET_ID_DESCRIPTION } from "../lib/spreadsheetid.js";
 import { withRetry } from "../lib/batch.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
@@ -60,7 +61,7 @@ export const openInputSchema = {
     .string()
     .optional()
     .describe(
-      "The spreadsheet id, the long id in the middle of the sheet's URL. Omit only when creating a new spreadsheet.",
+      `${SPREADSHEET_ID_DESCRIPTION} Omit only when creating a new spreadsheet.`,
     ),
   sheet: z
     .string()
@@ -134,7 +135,9 @@ export function createOpenTool(deps: ToolDeps): ToolDefinition<typeof openInputS
       const args = raw as OpenArgs;
       const ctx = await deps.getContext();
 
-      let spreadsheetId = args.spreadsheet_id;
+      // A pasted URL is the obvious thing to hand this tool, so it is read
+      // rather than refused with a lesson about where the id lives.
+      let spreadsheetId = args.spreadsheet_id ? resolveSpreadsheetId(args.spreadsheet_id) : undefined;
       let created = false;
 
       if (args.create) {
@@ -479,7 +482,13 @@ function proseFor(
     const keyLine = tab.conventions?.keyColumn
       ? `  Key column looks like ${tab.conventions.keyColumn}.`
       : undefined;
-    const contractLine = tab.contract ? `  Contract: ${tab.contract.summary}` : undefined;
+    // A spreadsheet nobody has written a contract for has none on every tab,
+    // and repeating the paragraph per tab buries the tabs that do have one.
+    // It is said once, at the end, naming the tabs it covers.
+    const contractLine =
+      tab.contract && tab.contract.source !== "none"
+        ? `  Contract: ${tab.contract.summary}`
+        : undefined;
     const validationLine = tab.validation.length
       ? `  Dropdowns on ${listOf(tab.validation.map((v) => v.column ?? v.range))}${
           tab.validation.some((v) => v.uiOwned) ? ", set outside this plugin" : ""
@@ -490,6 +499,18 @@ function proseFor(
   });
 
   const extras: string[] = [];
+
+  const uncontracted = tabs.filter((tab) => !tab.contract || tab.contract.source === "none");
+  if (uncontracted.length) {
+    const which =
+      uncontracted.length === tabs.length
+        ? "No contract."
+        : `No contract on ${listOf(uncontracted.map((t) => t.name))}.`;
+    extras.push(
+      `\n${which} This spreadsheet has no registry entry and no plugin metadata for ${uncontracted.length === tabs.length ? "any tab" : "those tabs"}, so nothing is protected beyond the formula guard. Treat every column as somebody else's until told otherwise.`,
+    );
+  }
+
   if (registry) extras.push(`\nRegistry: ${registry.summary}`);
   if (namedRanges.length) {
     extras.push(`\nNamed ranges: ${namedRanges.map((n) => `${n.name} (${n.range})`).join(", ")}`);
