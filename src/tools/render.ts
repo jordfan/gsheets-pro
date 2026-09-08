@@ -85,6 +85,8 @@ const DESCRIPTION = [
   "",
   "The files come back in structuredContent.pages, one entry per page of a long tab. Locally each entry has a path: read pages[0].path. When this server is hosted each entry has a url instead, valid for five minutes: fetch pages[0].url. There is no other key; a render that seems to have produced no file is a caller reading the wrong one.",
   "",
+  "Read every page, not just the first. A tab whose cells carry notes renders one extra page holding those notes as a numbered list, with bracketed markers in the grid pointing at it, so keeping only pages[0] silently throws away the sheet's documentation.",
+  "",
   "Use it once after a build and again after fixing what you saw. It is the only way to catch a column too narrow to read, a cell showing ###, an unreadable colour, or a row that wrapped to three lines.",
   "",
   "No dropdown paints as a pill in a render, so a bare-looking cell is not evidence that a rule is missing. sheets_check is authoritative for validation state.",
@@ -169,7 +171,17 @@ export function createRenderTool(
         }
         if (conversion.paths.length > 1) {
           warnings.push(
-            `The tab is ${count(conversion.paths.length, "page")} long. The frozen header repeats on each one.`,
+            `This render is ${count(conversion.paths.length, "page")}. The frozen header repeats on each page of grid.`,
+          );
+          // Spike 7: the export renders a cell note the way a printed document
+          // renders a footnote. The tool cannot tell whether this tab has notes
+          // without spending another read, so the sentence is conditional
+          // rather than asserted. Getting it wrong in the confident direction
+          // would be worse: a long tab with no notes really does end in more
+          // grid, and telling a caller otherwise sends them looking for a page
+          // that is not there.
+          warnings.push(
+            `If this tab has cell notes, the last page is not more grid. Notes render as endnotes: the note bodies are printed there as a numbered list, and the bracketed markers in the grid, "Instructor [1]", are references to that list rather than text anybody typed into the cell. Keep that page. It is the sheet's own documentation, and dropping it is how a well-documented sheet comes back looking undocumented.`,
           );
         }
 

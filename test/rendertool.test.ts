@@ -302,3 +302,62 @@ describe("the documented key is the emitted key", () => {
     expect(body.content[0].text).toContain("pages[1].path:");
   });
 });
+
+/**
+ * Notes render as endnotes, and the response has to say so.
+ *
+ * Spike 7: the export paints a cell note the way a printed document paints a
+ * footnote, a bracketed marker on the cell and the note bodies as a numbered
+ * list on a page after the grid. The plugin's own house style puts a note on
+ * every Table header, so the best-documented sheets are exactly the ones this
+ * happens to. A caller that keeps page one throws the documentation away and
+ * nothing tells it, which is the failure these cases are here to prevent.
+ */
+describe("the extra page a noted tab renders", () => {
+  test("a multi-page render explains the endnotes and says to keep the page", async () => {
+    const tool = toolFor(makeContext(), 2);
+    const response = await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" });
+    const warnings = ((response.structuredContent as Record<string, unknown>).warnings as string[]).join(" ");
+
+    expect(warnings).toContain("cell notes");
+    expect(warnings).toContain("endnotes");
+    expect(warnings).toContain("numbered list");
+    expect(warnings).toContain("Keep that page");
+    // The markers are the thing most likely to be read as a defect in the
+    // sheet, so the prose has to name them as references rather than content.
+    expect(warnings).toContain("[1]");
+    expect(warnings).toMatch(/references to that list rather than text/);
+  });
+
+  test("the same explanation reaches the prose a caller reads, not only structuredContent", async () => {
+    const tool = toolFor(makeContext(), 2);
+    const response = await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" });
+    expect(response.content[0].text).toContain("cell notes");
+    expect(response.content[0].text).toContain("Keep that page");
+  });
+
+  test("a one-page render says nothing about notes", async () => {
+    // There is no extra page to explain, and a caveat repeated where it does
+    // not apply is how a caveat stops being read.
+    const tool = toolFor(makeContext(), 1);
+    const response = await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" });
+    const warnings = ((response.structuredContent as Record<string, unknown>).warnings as string[]).join(" ");
+    expect(warnings).not.toContain("cell notes");
+    expect(warnings).not.toContain("endnotes");
+  });
+
+  test("the claim is conditional, because a long tab without notes ends in more grid", async () => {
+    const tool = toolFor(makeContext(), 3);
+    const response = await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" });
+    const warnings = ((response.structuredContent as Record<string, unknown>).warnings as string[]).join(" ");
+    expect(warnings).toContain("If this tab has cell notes");
+    expect(warnings).not.toContain("The last page holds");
+  });
+
+  test("the description tells a caller to read every page and why", () => {
+    const description = createRenderTool({ getContext: async () => makeContext() }).config.description;
+    expect(description).toContain("Read every page");
+    expect(description).toContain("notes");
+    expect(description).toContain("pages[0]");
+  });
+});
