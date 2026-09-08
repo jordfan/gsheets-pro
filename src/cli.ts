@@ -7,6 +7,7 @@
  *   gsheets-pro auth           sign in and write a token
  *   gsheets-pro doctor         say what is wrong, in the order it will bite
  *   gsheets-pro card           regenerate the skill card
+ *   gsheets-pro vendor         copy the guide into a repository's .claude/
  *
  * `doctor` is line one of the README because Path A setup is the top support
  * cost of any Google plugin, and because the seven day Testing expiry produces
@@ -47,6 +48,9 @@ const USAGE = `${SERVER_NAME} ${SERVER_VERSION}
       --client <file>               OAuth client JSON. Default ${clientSecretPath()}.
   gsheets-pro doctor                Check credentials, scopes, token age, and poppler.
   gsheets-pro card                  Regenerate the skill card from SKILL.md.
+  gsheets-pro vendor <repo-dir>     Copy the guide, hooks, and presets into a repository's
+                                     .claude/ directory, for scheduled runs (docs/cloud.md).
+      --dry-run                     Print what would be copied and written without doing it.
 
 Environment
   GSHEETS_PRO_TOKEN        Bearer the HTTP transport requires on every request.
@@ -128,6 +132,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
 
     case "card":
       return runCard(argv.slice(1));
+
+    case "vendor":
+      return runVendor(argv.slice(1));
 
     case "help":
     default:
@@ -322,16 +329,15 @@ function which(command: string): Promise<string | undefined> {
 }
 
 // ---------------------------------------------------------------------------
-// card
+// card, vendor: thin wrappers over the scripts/ helpers, run from a checkout
+// of the repo (they ship as source, not compiled into dist/).
 // ---------------------------------------------------------------------------
 
-function runCard(args: string[]): Promise<number> {
+function runRepoScript(name: string, args: string[], what: string): Promise<number> {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const script = path.resolve(here, "..", "scripts", "card.mjs");
+  const script = path.resolve(here, "..", "scripts", name);
   if (!fs.existsSync(script)) {
-    process.stderr.write(
-      `No card generator at ${script}. It is built alongside the skill; run this from a checkout of the repo.\n`,
-    );
+    process.stderr.write(`No ${what} at ${script}. Run this from a checkout of the repo.\n`);
     return Promise.resolve(1);
   }
   return new Promise((resolve) => {
@@ -339,6 +345,16 @@ function runCard(args: string[]): Promise<number> {
     child.on("error", () => resolve(1));
     child.on("close", (code) => resolve(code ?? 0));
   });
+}
+
+function runCard(args: string[]): Promise<number> {
+  return runRepoScript("card.mjs", args, "card generator");
+}
+
+function runVendor(args: string[]): Promise<number> {
+  // vendor.mjs prints its own usage and exits 1 when <repo-dir> is missing;
+  // no need to duplicate that check here.
+  return runRepoScript("vendor.mjs", args, "vendor script");
 }
 
 // ---------------------------------------------------------------------------

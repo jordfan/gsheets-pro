@@ -162,7 +162,7 @@ skill is unknown. Repository hooks and skills do load, so for a repository whose
 scheduled runs touch spreadsheets, copy the guide in:
 
 ```
-node scripts/vendor.mjs /path/to/your-repo
+gsheets-pro vendor /path/to/your-repo
 ```
 
 That puts the skill, the hooks, and the presets under the repository's
