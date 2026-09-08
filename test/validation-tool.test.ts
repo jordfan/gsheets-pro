@@ -171,10 +171,16 @@ describe("rules somebody else set", () => {
     expect(result.content[0].text).toMatch(/cannot be restored/);
   });
 
-  test("a rule on a column the plugin recorded is its own to replace", async () => {
+  test("a rule the plugin recorded setting is its own to replace", async () => {
     const ours: FakeWorkbook = {
       ...WITH_UI_RULE,
-      developerMetadata: [columnMetadata(0, 2, { header: "Status", role: "status" })],
+      developerMetadata: [
+        columnMetadata(0, 2, {
+          header: "Status",
+          role: "status",
+          validation: { kind: "list", strict: true },
+        }),
+      ],
     };
     const { validation } = tool(ours);
     const result = await validation.handler({
@@ -186,6 +192,135 @@ describe("rules somebody else set", () => {
     });
     expect(isFailure(result)).toBe(false);
     expect(result.content[0].text).toMatch(/Replaced 1 rule the plugin had set earlier/);
+  });
+
+  test("a column recorded for other reasons is not thereby the plugin's rule", async () => {
+    // A Table adopt records what a column means. It says nothing about who
+    // wrote the dropdown sitting on it, so the rule stays somebody else's.
+    const adopted: FakeWorkbook = {
+      ...WITH_UI_RULE,
+      developerMetadata: [columnMetadata(0, 2, { header: "Status", role: "status" })],
+    };
+    const { validation } = tool(adopted);
+    const result = await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "C2:C40",
+      type: "list",
+      values: ["Confirmed", "Pending", "Declined"],
+    });
+    expect(errorOf(result)?.code).toBe("ui_owned");
+  });
+});
+
+describe("recording what it set", () => {
+  test("setting a rule writes the column's provenance", async () => {
+    const { validation, requests } = tool();
+    const result = await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "C2:C40",
+      type: "list",
+      values: ["Confirmed", "Pending"],
+    });
+    const [created] = requestsOfKind<{ developerMetadata: Record<string, string> }>(
+      requests(),
+      "createDeveloperMetadata",
+    );
+    expect(created.developerMetadata["metadataKey"]).toBe("gsheets.column");
+    expect(JSON.parse(created.developerMetadata["metadataValue"])).toEqual({
+      validation: { kind: "list", strict: true },
+    });
+    expect((result.structuredContent as Record<string, never>)["recorded_columns"]).toEqual(["C"]);
+    expect(result.content[0].text).toMatch(/knows the rule is ours to change/);
+  });
+
+  test("the record merges into what the column already carries", async () => {
+    const recorded: FakeWorkbook = {
+      ...PLAIN,
+      developerMetadata: [columnMetadata(0, 2, { header: "Status", role: "status", owner: "agent" })],
+    };
+    const { validation, requests } = tool(recorded);
+    await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "C2:C40",
+      type: "checkbox",
+    });
+    const [updated] = requestsOfKind<{ developerMetadata: Record<string, string> }>(
+      requests(),
+      "updateDeveloperMetadata",
+    );
+    expect(JSON.parse(updated.developerMetadata["metadataValue"])).toEqual({
+      header: "Status",
+      role: "status",
+      owner: "agent",
+      validation: { kind: "checkbox", strict: true },
+    });
+  });
+
+  test("clearing a rule drops the marker and keeps the rest of the record", async () => {
+    const recorded: FakeWorkbook = {
+      ...PLAIN,
+      developerMetadata: [
+        columnMetadata(0, 2, {
+          header: "Status",
+          role: "status",
+          validation: { kind: "list", strict: true },
+        }),
+      ],
+    };
+    const { validation, requests } = tool(recorded);
+    await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "C2:C40",
+      type: "clear",
+    });
+    const [updated] = requestsOfKind<{ developerMetadata: Record<string, string> }>(
+      requests(),
+      "updateDeveloperMetadata",
+    );
+    expect(JSON.parse(updated.developerMetadata["metadataValue"])).toEqual({
+      header: "Status",
+      role: "status",
+    });
+  });
+
+  test("clearing a column that carries no record writes nothing", async () => {
+    const { validation, requests } = tool();
+    await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "C2:C40",
+      type: "clear",
+    });
+    expect(requestsOfKind(requests(), "createDeveloperMetadata")).toHaveLength(0);
+    expect(requestsOfKind(requests(), "updateDeveloperMetadata")).toHaveLength(0);
+  });
+
+  test("a range too wide to record says so instead of writing thirty entries", async () => {
+    const { validation, requests } = tool();
+    const result = await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "A2:Z40",
+      type: "checkbox",
+    });
+    expect(requestsOfKind(requests(), "createDeveloperMetadata")).toHaveLength(0);
+    expect(result.content[0].text).toMatch(/past the 12 this tool will record/);
+  });
+
+  test("a whole row range has nowhere to record provenance and says why", async () => {
+    const { validation, requests } = tool();
+    const result = await validation.handler({
+      spreadsheet_id: FAKE_ID,
+      sheet: "Tracker",
+      range: "2:40",
+      type: "checkbox",
+    });
+    expect(requestsOfKind(requests(), "createDeveloperMetadata")).toHaveLength(0);
+    expect(result.content[0].text).toMatch(/covers whole rows/);
   });
 });
 

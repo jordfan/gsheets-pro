@@ -226,9 +226,13 @@ suite("live: the Phase 3 tools", () => {
       ],
     });
     expect(isFailure(result)).toBe(false);
-    const check = (result.structuredContent as Record<string, never>)["check"] as { status: string };
+    const check = (result.structuredContent as Record<string, never>)["check"] as {
+      status: string;
+      total_errors: number;
+    };
     // The total is a formula over the two named ranges above it. If the names
-    // did not take, this reads errors_found rather than ok.
+    // did not take, the gate finds a #NAME? here.
+    expect(check.total_errors).toBe(0);
     expect(check.status).toBe("success");
 
     const values = await ctx.sheets.spreadsheets.values.get({
@@ -238,7 +242,7 @@ suite("live: the Phase 3 tools", () => {
     expect(Number(String(values.data.values?.[0]?.[0] ?? "0").replace(/[^0-9.]/g, ""))).toBe(440);
   }, 60_000);
 
-  test("sheets_validation sets a dropdown and then refuses to rewrite somebody else's", async () => {
+  test("sheets_validation recognises its own rule on the next call", async () => {
     const first = await tools.validation.handler({
       spreadsheet_id: SPREADSHEET_ID,
       sheet: VALID_TAB,
@@ -248,9 +252,11 @@ suite("live: the Phase 3 tools", () => {
       help: "Where the vendor has got to.",
     });
     expect(isFailure(first)).toBe(false);
+    expect((first.structuredContent as Record<string, never>)["recorded_columns"]).toEqual(["B"]);
 
-    // Nothing recorded that column as the plugin's, so the second call has to
-    // treat the rule it just made as somebody's and refuse.
+    // The first call recorded column B as the plugin's, so the second call
+    // knows the rule it is about to replace is its own work rather than a
+    // colleague's, and goes through without force.
     const second = await tools.validation.handler({
       spreadsheet_id: SPREADSHEET_ID,
       sheet: VALID_TAB,
@@ -258,15 +264,52 @@ suite("live: the Phase 3 tools", () => {
       type: "list",
       values: ["Confirmed", "Pending", "Declined"],
     });
-    expect(isFailure(second)).toBe(true);
-    expect(second.content[0].text).toMatch(/chip colours/);
+    expect(isFailure(second)).toBe(false);
+    expect(second.content[0].text).toMatch(/Replaced 1 rule the plugin had set earlier/);
+  }, 60_000);
+
+  test("a rule with no provenance is still refused, and force still overrides", async () => {
+    // Written straight through the API, the way a person's UI rule arrives:
+    // a rule on the sheet with nothing recording who put it there.
+    const map = await ctx.cache.list(SPREADSHEET_ID!, true);
+    const sheetId = map.byName.get(VALID_TAB.toLowerCase())!.sheetId;
+    await ctx.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID!,
+      requestBody: {
+        requests: [
+          {
+            setDataValidation: {
+              range: { sheetId, startRowIndex: 1, endRowIndex: 40, startColumnIndex: 2, endColumnIndex: 3 },
+              rule: {
+                condition: {
+                  type: "ONE_OF_LIST",
+                  values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }],
+                },
+                strict: true,
+                showCustomUi: true,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const refused = await tools.validation.handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: VALID_TAB,
+      range: "C2:C40",
+      type: "list",
+      values: ["Yes", "No", "Maybe"],
+    });
+    expect(isFailure(refused)).toBe(true);
+    expect(refused.content[0].text).toMatch(/chip colours/);
 
     const forced = await tools.validation.handler({
       spreadsheet_id: SPREADSHEET_ID,
       sheet: VALID_TAB,
-      range: "B2:B40",
+      range: "C2:C40",
       type: "list",
-      values: ["Confirmed", "Pending", "Declined"],
+      values: ["Yes", "No", "Maybe"],
       force: true,
     });
     expect(isFailure(forced)).toBe(false);

@@ -30,9 +30,15 @@ import { withRetry, runBatchUpdate } from "../lib/batch.js";
 import { recordWrite } from "../lib/writelog.js";
 import { buildCondition, CONDITION_KINDS, CONDITION_OPERATORS, describeCondition } from "../lib/conditions.js";
 import { err, GsheetsError } from "../lib/errors.js";
-import { columnRecords, readMetadata } from "../lib/metaread.js";
+import { columnRecords, hasColumnRecord, readMetadata, type MetadataSnapshot } from "../lib/metaread.js";
 import { assertWritable, isColumnWritable } from "../lib/registry.js";
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
+import { METADATA_KEYS } from "../lib/contract.js";
+import {
+  MAX_RECORDED_COLUMNS,
+  metadataRequest,
+  type PluginColumnRecord,
+} from "../lib/tables.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
 const STATE_MASK = [
@@ -209,15 +215,16 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
         );
       }
 
+      // The contract is read every time now, not only when a rule is in the
+      // way: setting a rule records who set it, and that record has to be
+      // merged into whatever the column already carries rather than replacing it.
+      const snapshot = await readMetadata(ctx.sheets as never, args.spreadsheet_id);
+      const records = columnRecords(snapshot, info.sheetId) as Map<number, PluginColumnRecord>;
+
       const existing = collectExisting(sheet as unknown as GridBlocks, grid.startColumnIndex ?? 0);
-      let uiOwnedColumns: string[] = [];
-      if (existing.length > 0) {
-        // Only worth a read when there is a rule that could be somebody's.
-        const pluginColumns = await pluginOwnedColumns(ctx, args.spreadsheet_id, info.sheetId);
-        uiOwnedColumns = existing
-          .filter((e) => !pluginColumns.has(e.column))
-          .map((e) => columnIndexToLetter(e.column));
-      }
+      const uiOwnedColumns = existing
+        .filter((e) => records.get(e.column)?.validation === undefined)
+        .map((e) => columnIndexToLetter(e.column));
       if (uiOwnedColumns.length && !args.force) {
         throw new GsheetsError(
           "ui_owned",
@@ -228,12 +235,25 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
       }
 
       const rule = args.type === "clear" ? undefined : buildRule(args);
-      const request =
+      const requests: unknown[] = [
         rule === undefined
           ? { setDataValidation: { range: grid } }
-          : { setDataValidation: { range: grid, rule } };
+          : { setDataValidation: { range: grid, rule } },
+      ];
 
-      const result = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, [request], {
+      const provenance = provenanceRequests({
+        snapshot,
+        records,
+        sheetId: info.sheetId,
+        firstColumn: grid.startColumnIndex,
+        lastColumn: grid.endColumnIndex === undefined ? undefined : grid.endColumnIndex - 1,
+        rule,
+        kind: args.type,
+        strict: args.strict !== false,
+      });
+      requests.push(...provenance.requests);
+
+      const result = await runBatchUpdate(ctx.sheets as never, args.spreadsheet_id, requests, {
         dryRun: args.dry_run === true,
       });
 
@@ -267,6 +287,7 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
           values: e.values,
         })),
         forced_over_ui_owned: uiOwnedColumns.length > 0 && args.force === true,
+        recorded_columns: provenance.columns,
         request_count: result.requestCount,
       };
 
@@ -286,6 +307,12 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
         );
       }
       if (rule?.inputMessage) notes.push(`Help text: "${rule.inputMessage}"`);
+      if (provenance.columns.length) {
+        notes.push(
+          `Recorded ${listOf(provenance.columns.map((c) => `column ${c}`))} as this plugin's, so a later call knows the rule is ours to change rather than a colleague's.`,
+        );
+      }
+      if (provenance.note) notes.push(provenance.note);
 
       return ok(lines(description, ...notes.map((n) => `- ${n}`)), structured);
     }),
@@ -395,16 +422,80 @@ function collectExisting(sheet: GridBlocks | undefined, fallbackStartColumn: num
   return [...seen.values()].sort((a, b) => a.column - b.column);
 }
 
+interface ProvenanceInput {
+  snapshot: MetadataSnapshot;
+  records: Map<number, PluginColumnRecord>;
+  sheetId: number;
+  firstColumn?: number;
+  lastColumn?: number;
+  rule: DataValidationRule | undefined;
+  kind: string;
+  strict: boolean;
+}
+
+interface ProvenanceResult {
+  requests: unknown[];
+  /** Column letters whose record was written. */
+  columns: string[];
+  note?: string;
+}
+
 /**
- * Columns carrying `gsheets.column` metadata, which are the plugin's own.
- * Metadata that cannot be read leaves the set empty, which is the safe reading:
- * every existing rule stays somebody else's until proven otherwise.
+ * Say, in the sheet itself, that this plugin set this rule.
+ *
+ * Without it every rule looks like a colleague's on the next call, including
+ * the one the plugin set a second ago, and the tool refuses to touch its own
+ * work. The record merges into whatever the column already carries, so a Table
+ * created column keeps its header, role and type.
+ *
+ * Clearing a rule removes the marker rather than the record: the column may
+ * still be under contract for other reasons.
  */
-async function pluginOwnedColumns(
-  ctx: { sheets: unknown },
-  spreadsheetId: string,
-  sheetId: number,
-): Promise<Set<number>> {
-  const snapshot = await readMetadata(ctx.sheets as never, spreadsheetId);
-  return new Set(columnRecords(snapshot, sheetId).keys());
+function provenanceRequests(input: ProvenanceInput): ProvenanceResult {
+  const { firstColumn, lastColumn } = input;
+  if (firstColumn === undefined || lastColumn === undefined) {
+    return {
+      requests: [],
+      columns: [],
+      note: "That range covers whole rows rather than named columns, so there was nowhere to record which columns this rule belongs to. A later call will read the rule as somebody else's.",
+    };
+  }
+
+  const width = lastColumn - firstColumn + 1;
+  if (width > MAX_RECORDED_COLUMNS) {
+    return {
+      requests: [],
+      columns: [],
+      note: `The range spans ${width} columns, past the ${MAX_RECORDED_COLUMNS} this tool will record one at a time, so no provenance was written. Set the rule a column or a few at a time if a later call should recognise it as ours.`,
+    };
+  }
+
+  const requests: unknown[] = [];
+  const columns: string[] = [];
+  for (let columnIndex = firstColumn; columnIndex <= lastColumn; columnIndex += 1) {
+    const current = input.records.get(columnIndex);
+    if (input.rule === undefined && current === undefined) continue;
+
+    const record: PluginColumnRecord = { ...(current ?? {}) };
+    if (input.rule === undefined) delete record.validation;
+    else record.validation = { kind: input.kind, strict: input.strict };
+
+    requests.push(
+      metadataRequest({
+        key: METADATA_KEYS.column,
+        value: record,
+        location: {
+          dimensionRange: {
+            sheetId: input.sheetId,
+            dimension: "COLUMNS",
+            startIndex: columnIndex,
+            endIndex: columnIndex + 1,
+          },
+        },
+        exists: hasColumnRecord(input.snapshot, input.sheetId, columnIndex),
+      }),
+    );
+    columns.push(columnIndexToLetter(columnIndex));
+  }
+  return { requests, columns };
 }

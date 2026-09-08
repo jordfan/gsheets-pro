@@ -221,6 +221,27 @@ export interface PluginSheetRecord extends SheetMetadata {
   statusFills?: Array<{ column: string; option: string; role: string; fingerprint: string }>;
 }
 
+/**
+ * What the plugin records about one column, stored as the `gsheets.column`
+ * entry: the shared contract fields, plus the provenance of a validation rule.
+ *
+ * Provenance is the point. A rule with no record beside it belongs to somebody
+ * else, and rewriting it destroys chip colours the API cannot read back. So
+ * when the plugin sets a rule it says so here, and on the next call it can tell
+ * its own work from a colleague's rather than refusing to touch either.
+ */
+export interface PluginColumnRecord extends ColumnMetadata {
+  /** Present when this plugin wrote the column's validation rule. */
+  validation?: {
+    /** The `sheets_validation` type behind it: list, checkbox, number, and so on. */
+    kind: string;
+    strict: boolean;
+  };
+}
+
+/** How many columns one call will record provenance for. */
+export const MAX_RECORDED_COLUMNS = 12;
+
 export type MetadataLocation =
   | { spreadsheet: true }
   | { sheetId: number }
