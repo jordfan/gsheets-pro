@@ -11,9 +11,13 @@
  * Never image bytes: MCP image content blocks are mishandled by Claude Code, so
  * a render that returned them would be a render nobody could see.
  *
- * Every response says the same two things about what a picture cannot show. A
- * dropdown never paints as a chip, so a bare-looking cell is not evidence that
- * a validation rule is missing, and `sheets_check` is the authority on that.
+ * Every response says the same thing about what a picture cannot show. No
+ * dropdown paints as a pill, and one the API created is plain black text that
+ * looks exactly like a cell with no rule at all, so a bare-looking cell is not
+ * evidence that a validation rule is missing and `sheets_check` is the
+ * authority on that. The near miss is worth knowing and is in the caveat too: a
+ * rule somebody coloured by hand does paint as coloured text, which makes a
+ * render the only way to see that those colours are still there.
  */
 
 import fs from "node:fs";
@@ -39,7 +43,7 @@ import type { ToolDefinition, ToolDeps } from "./types.js";
 
 /** What a render can never show, said the same way every time. */
 export const RENDER_CAVEAT =
-  "A render never paints dropdowns. A validation rule shows as plain cell text, with no pill and no arrow, whether it came from a Table column typed DROPDOWN or from sheets_validation, so a bare-looking cell here is not evidence that a rule is missing. sheets_check is authoritative for validation state. Everything else in the image is trustworthy: fills, fonts, borders, banding, merges, column widths, and conditional formats all paint, and the frozen header repeats on every page.";
+  "No dropdown paints as a pill. A rule the API created shows as plain black text, indistinguishable from a cell carrying no rule at all, so a bare-looking cell here is not evidence that a rule is missing and sheets_check is authoritative for validation state. The one thing the image does show is colour: a rule somebody coloured by hand in the Sheets UI paints as coloured text, so a column of dropdowns that has gone plain black has lost those colours, which no API call can put back. Everything else in the image is trustworthy: fills, fonts, borders, banding, merges, column widths, and conditional formats all paint, and the frozen header repeats on every page.";
 
 export const renderInputSchema = {
   spreadsheet_id: z.string().describe("The spreadsheet id, the long id in the middle of the sheet's URL."),
@@ -81,7 +85,7 @@ const DESCRIPTION = [
   "",
   "Use it once after a build and again after fixing what you saw. It is the only way to catch a column too narrow to read, a cell showing ###, an unreadable colour, or a row that wrapped to three lines.",
   "",
-  "Dropdowns never appear in a render. sheets_check is authoritative for validation state.",
+  "No dropdown paints as a pill in a render, so a bare-looking cell is not evidence that a rule is missing. sheets_check is authoritative for validation state.",
 ].join("\n");
 
 export interface RenderToolOptions {

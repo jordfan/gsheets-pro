@@ -311,7 +311,8 @@ describe("where a render goes", () => {
 
 describe("what the response always says", () => {
   test("the caveat names dropdowns and points at the lint", () => {
-    expect(RENDER_CAVEAT).toContain("never paints dropdowns");
+    expect(RENDER_CAVEAT).toContain("No dropdown paints as a pill");
+    expect(RENDER_CAVEAT).toContain("coloured by hand");
     expect(RENDER_CAVEAT).toContain("sheets_check is authoritative");
   });
 

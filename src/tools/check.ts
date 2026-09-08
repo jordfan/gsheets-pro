@@ -118,7 +118,7 @@ const DESCRIPTION = [
   "",
   "status success means no error-severity finding, and warnings may still be present. errors_found is a stop. pending means cells were still calculating after a short retry, so wait and run it again.",
   "",
-  "This is the authority on validation state. A render never paints dropdowns, so a bare-looking cell in an image is not evidence that a rule is missing.",
+  "This is the authority on validation state. No dropdown paints as a pill in a render, so a bare-looking cell in an image is not evidence that a rule is missing.",
 ].join("\n");
 
 export interface CheckToolOptions {
@@ -342,7 +342,7 @@ export function createCheckTool(
           findings.length ? "" : undefined,
           ...findings.map(findingLine),
           notes.length ? `\n${notes.map((note) => `- ${note}`).join("\n")}` : undefined,
-          "\nDropdowns never appear in a render, so this is the authority on validation state. A clean check means the formulas evaluate; it does not mean they point where you think they do. Spot-check a number by hand.",
+          "\nNo dropdown paints as a pill in a render, so this is the authority on validation state. A clean check means the formulas evaluate. It does not mean they point where you think they do, so spot-check a number by hand.",
         ),
         structured,
         { maxResultSizeChars: 120_000 },

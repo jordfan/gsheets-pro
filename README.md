@@ -31,13 +31,16 @@ of every session.
 
 | Piece | State |
 |---|---|
-| Core library, both transports, `sheets_open`, `sheets_read` | working, 279 offline tests |
+| Core library, both transports, `sheets_open`, `sheets_read` | working |
 | Skill, card, references, presets, hooks, reviewer agent | written, validated |
 | `sheets_write`, `sheets_style`, presets compiler | in progress |
 | `sheets_table`, `sheets_settings`, `sheets_validation`, `sheets_conditional_format` | in progress |
 | `sheets_structure`, `sheets_find`, `sheets_batch` | in progress |
 | `sheets_check`, `sheets_render`, the seven v1 lint rules | working, live tested |
 | Docs, setup guide, evals, releases | later |
+
+788 offline tests run in about a second and need no credentials. A separate
+live suite runs against a disposable spreadsheet and skips itself without one.
 
 The API behaviors this design rests on were tested live; the verdicts are in
 `docs/spikes.md`. Two of them prevent silent data loss that a naive

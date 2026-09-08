@@ -136,7 +136,7 @@ describe("local mode", () => {
   test("every response says what a render cannot show", async () => {
     const tool = toolFor(makeContext());
     const response = await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" });
-    expect(response.content[0].text).toContain("never paints dropdowns");
+    expect(response.content[0].text).toContain("No dropdown paints as a pill");
     expect(response.content[0].text).toContain("sheets_check is authoritative");
     expect((response.structuredContent as Record<string, unknown>).caveat).toContain("dropdowns");
   });

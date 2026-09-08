@@ -110,7 +110,7 @@ describe("the shape of the report", () => {
   test("the prose always says what a render cannot show", async () => {
     const { tool } = toolFor([ROSTER]);
     const response = await tool.handler({ spreadsheet_id: FIXTURE_SPREADSHEET_ID });
-    expect(response.content[0].text).toContain("Dropdowns never appear in a render");
+    expect(response.content[0].text).toContain("No dropdown paints as a pill in a render");
     expect(response.content[0].text).toContain("authority on validation state");
   });
 });
