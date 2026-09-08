@@ -47,33 +47,44 @@ let style: (args: Record<string, unknown>) => Promise<ToolResponse>;
 /**
  * Delete every tab this suite owns, then make them fresh.
  *
+ * Every call here backs off on a 429 like the cases do. Setup that does not is
+ * worse than a case that does not: a quota blip in `beforeAll` fails the whole
+ * file and reports fourteen skipped tests, which reads as though the suite is
+ * broken rather than as though Google said wait.
+ *
  * The tabs are left behind when the run ends, on purpose: when a case fails,
  * the sheet itself is the evidence, and the next run resets them anyway.
  */
 async function resetTabs(): Promise<void> {
-  const existing = await context.sheets.spreadsheets.get({
-    spreadsheetId: SPREADSHEET!,
-    fields: "sheets.properties(sheetId,title)",
-  });
+  const existing = await withRetry(() =>
+    context.sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET!,
+      fields: "sheets.properties(sheetId,title)",
+    }),
+  );
   const deletes = (existing.data.sheets ?? [])
     .filter((s) => s.properties?.title === WRITE_TAB || s.properties?.title === STYLE_TAB)
     .map((s) => ({ deleteSheet: { sheetId: s.properties!.sheetId } }));
   if (deletes.length) {
-    await context.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET!,
-      requestBody: { requests: deletes },
-    });
+    await withRetry(() =>
+      context.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET!,
+        requestBody: { requests: deletes },
+      }),
+    );
   }
 
-  const created = await context.sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SPREADSHEET!,
-    requestBody: {
-      requests: [
-        { addSheet: { properties: { title: WRITE_TAB, gridProperties: { frozenRowCount: 1 } } } },
-        { addSheet: { properties: { title: STYLE_TAB, gridProperties: { frozenRowCount: 1 } } } },
-      ],
-    },
-  });
+  const created = await withRetry(() =>
+    context.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET!,
+      requestBody: {
+        requests: [
+          { addSheet: { properties: { title: WRITE_TAB, gridProperties: { frozenRowCount: 1 } } } },
+          { addSheet: { properties: { title: STYLE_TAB, gridProperties: { frozenRowCount: 1 } } } },
+        ],
+      },
+    }),
+  );
   void created;
   context.cache.invalidate(SPREADSHEET!);
 
@@ -85,16 +96,18 @@ async function resetTabs(): Promise<void> {
     ["Bo Tran", "4", "Chess Club", "8", "=D3*55"],
     ["Cy Okafor", "5", "Clay Studio", "6", "=D4*55"],
   ];
-  await context.sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: SPREADSHEET!,
-    requestBody: {
-      valueInputOption: "USER_ENTERED",
-      data: [
-        { range: `'${WRITE_TAB}'!A1:E4`, values: seed },
-        { range: `'${STYLE_TAB}'!A1:E4`, values: seed },
-      ],
-    },
-  });
+  await withRetry(() =>
+    context.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: SPREADSHEET!,
+      requestBody: {
+        valueInputOption: "USER_ENTERED",
+        data: [
+          { range: `'${WRITE_TAB}'!A1:E4`, values: seed },
+          { range: `'${STYLE_TAB}'!A1:E4`, values: seed },
+        ],
+      },
+    }),
+  );
 }
 
 beforeAll(async () => {
