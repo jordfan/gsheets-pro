@@ -6,7 +6,9 @@
  * so the file is safe in CI. See `vitest.live.config.ts` for the command.
  *
  * The suite creates its own tabs, named with a timestamp so two runs never
- * collide, and deletes them at the end. Data in them is invented.
+ * collide, and deletes them at the end. The copy case creates a whole
+ * spreadsheet, which is the one thing here that outlives a tab delete, so it is
+ * moved to the trash by name in `afterAll`. Data in all of them is invented.
  *
  * One thing is deliberately not tested live: `sheets_find share`. Sharing
  * grants a real person access to a real file and cannot be taken back from
@@ -25,7 +27,11 @@ import { paceContext } from "./pacing.js";
 const SPREADSHEET_ID = process.env.GSHEETS_PRO_LIVE_SPREADSHEET;
 const live = SPREADSHEET_ID ? describe : describe.skip;
 
-/** Titled exactly as the brief requires, so it is obvious the copy is disposable. */
+/**
+ * The disposable title, which is also the guard: cleanup trashes the copy only
+ * when the file still carries this exact name, so a stale or wrong id cannot
+ * take a real spreadsheet with it.
+ */
 const COPY_TITLE = "gsheets-pro find spike (safe to delete)";
 
 const stamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(8, 14);
@@ -73,7 +79,40 @@ live("sheets_structure, sheets_find and sheets_batch, live", () => {
     structure = createStructureTool(deps);
     find = createFindTool(deps);
     batch = createBatchTool(deps);
+    await assertFixtureIsNotTrashed();
   });
+
+  /**
+   * Refuse to run against a fixture that is in Drive's trash.
+   *
+   * Sheets reads and writes a trashed spreadsheet perfectly happily, so sixteen
+   * of these cases pass against one and only the Drive title search fails,
+   * where it reads as a bug in `sheets_find list` rather than as a fixture that
+   * somebody threw away. The spike spreadsheet is documented as disposable, so
+   * this is a state to expect rather than to prevent; it just needs saying in
+   * one sentence at the top of the run instead of one assertion in the middle.
+   */
+  async function assertFixtureIsNotTrashed(): Promise<void> {
+    let file: { name?: string | null; trashed?: boolean | null } | undefined;
+    try {
+      const response = await ctx.drive.files.get({
+        fileId: SPREADSHEET_ID!,
+        fields: "name,trashed",
+        supportsAllDrives: true,
+      });
+      file = response.data;
+    } catch (error) {
+      // A token with only `spreadsheets` cannot answer this, and that is fine:
+      // the Drive cases will report the missing scope themselves.
+      // eslint-disable-next-line no-console
+      console.warn(`Could not check the fixture against Drive: ${(error as Error).message}`);
+      return;
+    }
+    if (!file?.trashed) return;
+    throw new Error(
+      `The live fixture ${SPREADSHEET_ID} ("${file.name}") is in Drive's trash. Sheets still reads and writes a trashed file, so most of this suite would pass and only the title search would fail. Restore it from the trash, or point GSHEETS_PRO_LIVE_SPREADSHEET at a fresh disposable spreadsheet.`,
+    );
+  }
 
   afterAll(async () => {
     // Best effort cleanup. A leftover tab on a disposable spreadsheet is not
@@ -90,11 +129,54 @@ live("sheets_structure, sheets_find and sheets_batch, live", () => {
         // The tab was renamed away or never created.
       }
     }
-    if (copiedSpreadsheetId) {
-      // eslint-disable-next-line no-console
-      console.log(`Live run left a copied spreadsheet behind: ${copiedSpreadsheetId} ("${COPY_TITLE}")`);
-    }
+    await trashTheCopy();
   });
+
+  /**
+   * Put the copied spreadsheet in the trash.
+   *
+   * The copy test is the only case in the whole live suite that creates a
+   * FILE rather than a tab, and a file is not cleaned up by deleting tabs. An
+   * earlier version of this suite only logged the id, which meant every run
+   * left one behind; twenty accumulated in Drive in a day.
+   *
+   * Two things make this safe to run unattended. It trashes rather than
+   * deletes, so a mistake is recoverable from Drive's own trash for thirty
+   * days. And it re-reads the file's name and trashes it only when the name is
+   * exactly the disposable title, so an id that somehow pointed at a real
+   * spreadsheet is left alone. Failing to clean up is not worth failing the
+   * run over, but it is worth saying out loud.
+   */
+  async function trashTheCopy(): Promise<void> {
+    if (!copiedSpreadsheetId) return;
+    try {
+      const file = await ctx.drive.files.get({
+        fileId: copiedSpreadsheetId,
+        fields: "id,name",
+        supportsAllDrives: true,
+      });
+      if (file.data.name !== COPY_TITLE) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `Left ${copiedSpreadsheetId} alone: it is named "${file.data.name}", not "${COPY_TITLE}".`,
+        );
+        return;
+      }
+      await ctx.drive.files.update({
+        fileId: copiedSpreadsheetId,
+        supportsAllDrives: true,
+        requestBody: { trashed: true },
+      });
+      copiedSpreadsheetId = undefined;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Could not trash the copied spreadsheet ${copiedSpreadsheetId} ("${COPY_TITLE}"): ${
+          (error as Error).message
+        }. Trash it by hand.`,
+      );
+    }
+  }
 
   test("add_tab creates a tab and reports its id", async () => {
     const result = unwrap(
