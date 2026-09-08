@@ -15,18 +15,30 @@ Then run `/gsheets-pro:setup` for the Google authentication walkthrough.
 
 ## Where the server binary comes from
 
-`.mcp.json` points at `${CLAUDE_PLUGIN_ROOT}/../../dist/cli.js`.
+`.mcp.json` points at `${CLAUDE_PLUGIN_ROOT}/bin/start.mjs`, a small
+dependency-free bootstrap, not at a built `dist/cli.js` directly.
 
-`${CLAUDE_PLUGIN_ROOT}` is the absolute path to this plugin's own installation
-directory, which is `plugins/gsheets-pro-local/` inside the cloned marketplace
-repository. Two levels up is the repository root, where `npm run build` writes
-`dist/`. Claude Code clones the whole marketplace repository, so the built
-server sits beside the plugin, and tagged releases commit `dist/`.
+That indirection exists because `${CLAUDE_PLUGIN_ROOT}` is not, as it might
+look, a path inside a full checkout of this repository. A `claude plugin
+marketplace add` install materializes only this plugin's own subtree, this
+directory and its neighbors, into a cache directory of Claude Code's own
+choosing; there is no `src/`, no `package.json`, no repository root reachable
+from there by any relative path, so a built `dist/cli.js` cannot simply sit two
+levels up the way it would in a hand-cloned checkout.
 
-If you installed this plugin some other way and the server does not start, the
-likely cause is that `dist/` was not part of what you installed. Clone the
-repository, run `npm ci && npm run build`, and install with
-`--plugin-dir ./plugins/gsheets-pro-local`.
+So `bin/start.mjs` builds and caches the server itself, the first time it
+runs: `npm install git+https://github.com/jordfan/gsheets-pro.git` into this
+plugin's own persistent data directory (`${CLAUDE_PLUGIN_DATA}`), which clones
+the repository, runs its build through the package's own `prepare` script, and
+keeps only the built output and its runtime dependencies, no TypeScript
+toolchain left behind. That first run prints one status line to stderr and can
+take a minute; every run after it, as long as this plugin's own version has
+not changed, execs the already-built server directly, with no network call and
+no npm involved.
+
+If the very first run fails (no network reaching GitHub, no npm on `PATH`,
+that kind of thing), the error npm produced is printed to stderr and the
+server does not start; fix whatever it names and reconnect.
 
 ## Tool names
 
