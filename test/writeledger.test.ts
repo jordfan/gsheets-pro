@@ -15,6 +15,7 @@
  */
 import { beforeEach, describe, expect, test } from "vitest";
 
+import { l14WriteOutsideColumns } from "../src/lib/lint/l14-write-outside-columns.js";
 import { clearWrites, writesFor } from "../src/lib/writelog.js";
 import { isFailure } from "../src/lib/result.js";
 import { createBatchTool } from "../src/tools/batch.js";
@@ -31,6 +32,7 @@ import {
   type FakeWorkbook,
 } from "./helpers/fakeMutableContext.js";
 import { makeMutationContext, MUT_SPREADSHEET_ID } from "./helpers/fakeMutations.js";
+import { lintContext, registryJson } from "./helpers/lintFixtures.js";
 import {
   makeWriteContext,
   WRITE_SPREADSHEET_ID,
@@ -316,6 +318,57 @@ describe("sheets_batch", () => {
     expect(isFailure(response)).toBe(false);
     expect(writesFor(MUT_SPREADSHEET_ID).length).toBeGreaterThan(0);
     expect(toolsUsed(MUT_SPREADSHEET_ID)).toEqual(["sheets_batch"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The seam: a real tool's record, read by the real rule
+// ---------------------------------------------------------------------------
+
+describe("the ledger and lint rule L14, end to end", () => {
+  test("a forced write into a withheld column is flagged by the rule that reads the ledger", async () => {
+    const entry = { name: "Autumn Clubs", owner: "shared", writable_columns: ["A", "B"] };
+    const writeRegistry = JSON.stringify({
+      spreadsheets: { [WRITE_SPREADSHEET_ID]: entry },
+    });
+    const { context } = makeWriteContext(structuredClone(ROSTER), writeRegistry);
+    const write = createWriteTool({ getContext: async () => context }).handler;
+
+    // Column C is not ours. force gets it past the write guard, which is the
+    // situation L14 exists to notice afterwards.
+    const response = await write({
+      spreadsheet_id: WRITE_SPREADSHEET_ID,
+      sheet: "Roster",
+      range: "C2",
+      values: [["Chess Club"]],
+      force: true,
+    });
+    expect(isFailure(response)).toBe(false);
+
+    // The rule reads the ledger the tool just wrote to, with no hand-built
+    // fixture in between. This is the only test that proves the two halves
+    // agree about the shape of a recorded range.
+    const recorded = writesFor(WRITE_SPREADSHEET_ID);
+    expect(recorded).toHaveLength(1);
+
+    // The lint fixture keys its registry on its own spreadsheet id. The ids
+    // differ and that is fine: what this asserts is that the rule understands
+    // the range the tool actually recorded, not that two fakes agree on an id.
+    const ctx = lintContext({
+      title: "Roster",
+      frozenRows: 1,
+      registry: registryJson(entry),
+      rows: [
+        ["Student", "Grade", "Club"],
+        ["Ana Reyes", "3", "Chess Club"],
+      ],
+      writes: recorded,
+    });
+
+    const findings = l14WriteOutsideColumns.run(ctx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe("warning");
+    expect(findings[0].message).toContain("Club");
   });
 });
 
