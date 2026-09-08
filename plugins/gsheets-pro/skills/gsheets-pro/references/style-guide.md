@@ -115,6 +115,19 @@ Lint rule L04 catches merges overlapping a Table or a formula block.
 Hide gridlines only when banding or borders already separate the rows. Without
 that structure, hiding gridlines makes a sheet harder to read, not cleaner.
 
+**Column widths: autofit the values, fix and wrap the prose, and give a chip
+column about 30 percent more than autofit offers.** Autofit is right for a
+column of short values and wrong for a column of sentences, which it makes wider
+than the page, so those get a fixed width and `wrap` instead.
+
+The dropdown exception is the one that catches people. A chip renders with
+padding around its text and an arrow beside it, and none of that is in the
+string the API measures, so an autofitted dropdown column comes out reliably too
+narrow and clips the longest option in the browser. Add roughly a third.
+
+Hand-picking widths for everything else is a losing game. Widening one column
+truncates the next, and the next change to the data moves the truncation again.
+
 ## 7. Write the documentation into the sheet
 
 Sheets gives you three places, and they are for three different things.

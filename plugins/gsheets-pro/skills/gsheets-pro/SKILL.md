@@ -31,13 +31,13 @@ actually has.
 5. **`sheets_check` before you call it done.** It is the lint. Clear every
    error-severity finding. Justify any warning you leave in one sentence.
 6. **`sheets_render` once, then look.** The image is at `pages[0].path`, or
-   `pages[0].url` when the server is hosted. There is no other key, so a render
-   that seems to have produced nothing was read wrong rather than run wrong. Fix
-   what you see, re-render only the tabs you changed, and stop. One fix pass,
-   not an open-ended polish loop. **A render is for your own eyes.** Dropdowns
-   never paint as pills, and a Table's header row can come back carrying icons
-   and bracketed indices the spreadsheet does not have, so a picture going in
-   front of a person should be a browser screenshot instead.
+   `pages[0].url` when hosted. There is no other key, so a render that seems to
+   have produced nothing was read wrong, not run wrong. Fix what you see,
+   re-render only what you changed, and stop. **A render is for your own eyes.**
+   Dropdowns never paint as pills, and every cell note becomes a footnote, so a
+   well-documented sheet is the one whose picture reads oddly. Nothing is wrong
+   with it. The notes are on the last page. A picture for a person should be a
+   browser screenshot.
 
 A clean `sheets_check` proves your formulas evaluate. It does not prove they are
 right. An off-by-one range gives you a green lint and wrong numbers. Write two
@@ -64,7 +64,10 @@ expect before you fill a column.
    archetype. Both resolve from preset tokens, never raw hex. `sheets_style`.
 6. **Freeze the header row. Never merge inside a data region.** Merges break
    sorting, filtering, and most formulas. Merge only a title banner outside the
-   table body. `sheets_style`, and lint rules L04 and L09.
+   table body. Autofit the columns holding values, give a column of sentences a
+   fixed width and `wrap`, and give a dropdown column about 30 percent more than
+   autofit offers, because a chip's padding and arrow are not in the text the
+   API measures. `sheets_style`, and lint rules L04 and L09.
 7. **Write the documentation into the sheet.** A note on each header cell says
    what the column means and its units. Validation help text says what a valid
    entry looks like. Both read as if a colleague wrote them for another
@@ -201,16 +204,25 @@ at all. `sheets_check` is authoritative for validation state. Confirm a dropdown
 there, and never re-create one because the picture looked bare: re-creating it
 is what destroys the colors.
 
-**A Table's header row can come back branded.** The export sometimes paints each
-header with a column-type icon and a bracketed position, so a header reading
-`Student` renders as `Student [1]` and the row runs on to `Check [10]`. None of
-that is in the spreadsheet. The cells hold the plain names and so does the
-Table's own column list. When it happens it is the picture decorating a Table,
-not a header you need to fix, so read the values back before believing it.
+**A cell note renders as a footnote.** The export appends a bracketed marker to
+the cell's text and lists the note bodies on an extra page after the grid. So a
+header reading `Student` comes back as `Student [1]`, a row of ten documented
+headers runs on to `Check [10]`, and the tab renders one page more than its grid
+needs.
+
+Nothing is wrong with the sheet. The cells hold the plain names, and the marker
+is the export doing what a printed document does with a footnote. Since this
+guide asks you to put a note on every header, **the sheets you build best are
+exactly the ones whose renders read oddly.** Never rewrite a header to remove a
+bracket, and never treat the extra page as overflow.
+
+Read that last page. It is the documentation, and it is the only way to see what
+a note says without spending another call. The markers are how a render shows
+you that documentation exists at all.
 
 Both exceptions point the same way. **A render is for your own eyes.** Use it to
-check your work. Anything going in front of a person should be a browser
-screenshot, which is what a colleague actually sees.
+check your own work, where a bracket costs nothing. Anything going in front of a
+person should be a browser screenshot, which is what a colleague actually sees.
 
 ## References
 

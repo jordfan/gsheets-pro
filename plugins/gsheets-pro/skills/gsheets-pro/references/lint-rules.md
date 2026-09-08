@@ -135,13 +135,17 @@ colleague's chip colors survived, even though it cannot tell you whether a rule
 is there. Those colors are the fragile thing in the whole system: rewriting the
 rule destroys them, and the API cannot read them back to put them right.
 
-**A render can show header text the spreadsheet does not contain.** On a native
-Table the export sometimes brands the header row, giving each header a
-column-type icon and a bracketed position, so a row of headers reading `Student`
-through `Check` comes back as `Student [1]` through `Check [10]`. None of it is
-stored anywhere. The lint reads the cells and the Table's own column list, so it
-sees the real names. Believe the lint, and never rename a header to match what a
-render showed.
+**A render shows cell text the spreadsheet does not contain, because a note
+renders as a footnote.** The export appends a bracketed marker to the cell and
+lists the note bodies on an extra page after the grid, so a row of headers
+reading `Student` through `Check` comes back as `Student [1]` through
+`Check [10]`. The lint reads the cells themselves, so it sees the real names.
+Believe the lint, and never rename a header to match what a render showed.
+
+This is the lint and the render disagreeing while both are right, and it is
+worth knowing which way round. Where L15 would report a header without a note,
+the render reports the opposite thing in the same place: a marker means the note
+is there. So a header with no bracket in a picture is the one worth checking.
 
 Everything else in a render is trustworthy. It paints fills, fonts, borders,
 banding, merges, column widths, and conditional-format rules, including rules
@@ -156,5 +160,5 @@ key column with duplicates, text that does not read as a colleague's.
 
 Both exceptions are reasons a render is for your own eyes rather than for
 anybody else's. A picture going in front of a person should be a browser
-screenshot, which shows the pills, shows the real headers, and is what a
+screenshot, which shows the pills, shows the headers as they are, and is what a
 colleague actually sees when they open the file.

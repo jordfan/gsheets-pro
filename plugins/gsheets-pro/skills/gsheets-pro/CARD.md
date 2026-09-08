@@ -18,13 +18,13 @@
 5. **`sheets_check` before you call it done.** It is the lint. Clear every
    error-severity finding. Justify any warning you leave in one sentence.
 6. **`sheets_render` once, then look.** The image is at `pages[0].path`, or
-   `pages[0].url` when the server is hosted. There is no other key, so a render
-   that seems to have produced nothing was read wrong rather than run wrong. Fix
-   what you see, re-render only the tabs you changed, and stop. One fix pass,
-   not an open-ended polish loop. **A render is for your own eyes.** Dropdowns
-   never paint as pills, and a Table's header row can come back carrying icons
-   and bracketed indices the spreadsheet does not have, so a picture going in
-   front of a person should be a browser screenshot instead.
+   `pages[0].url` when hosted. There is no other key, so a render that seems to
+   have produced nothing was read wrong, not run wrong. Fix what you see,
+   re-render only what you changed, and stop. **A render is for your own eyes.**
+   Dropdowns never paint as pills, and every cell note becomes a footnote, so a
+   well-documented sheet is the one whose picture reads oddly. Nothing is wrong
+   with it. The notes are on the last page. A picture for a person should be a
+   browser screenshot.
 
 A clean `sheets_check` proves your formulas evaluate. It does not prove they are
 right. An off-by-one range gives you a green lint and wrong numbers. Write two
@@ -51,7 +51,10 @@ expect before you fill a column.
    archetype. Both resolve from preset tokens, never raw hex. `sheets_style`.
 6. **Freeze the header row. Never merge inside a data region.** Merges break
    sorting, filtering, and most formulas. Merge only a title banner outside the
-   table body. `sheets_style`, and lint rules L04 and L09.
+   table body. Autofit the columns holding values, give a column of sentences a
+   fixed width and `wrap`, and give a dropdown column about 30 percent more than
+   autofit offers, because a chip's padding and arrow are not in the text the
+   API measures. `sheets_style`, and lint rules L04 and L09.
 7. **Write the documentation into the sheet.** A note on each header cell says
    what the column means and its units. Validation help text says what a valid
    entry looks like. Both read as if a colleague wrote them for another

@@ -76,12 +76,16 @@ a missing dropdown from an image**. Check `sheets_check` for validation state
 instead, and say in your report which findings came from the lint rather than
 from looking.
 
-**A Table's header row can come back branded.** The export sometimes gives each
-header a column-type icon and a bracketed position, so headers reading `Student`
-through `Check` render as `Student [1]` through `Check [10]`. None of that is in
-the spreadsheet. So **never report a header name from an image**: read the
-header cells before writing any finding about them, and never file the brackets
-themselves as a defect.
+**A cell note renders as a footnote.** The export appends a bracketed marker to
+the cell's text and lists the note bodies on an extra page after the grid, so
+headers reading `Student` through `Check` render as `Student [1]` through
+`Check [10]`, and a documented tab renders one page more than its grid needs.
+
+So **never report a header name from an image**, read the header cells first,
+and **never file a bracket or the extra page as a defect**. A sheet whose render
+reads oddly is usually a well-documented sheet, which is what this guide asks
+for. Read that last page: it is the notes, and it is the cheapest way to judge
+whether they are any good.
 
 One thing the image does tell you here, and it deserves a deliberate look. A
 dropdown **a person colored by hand** shows as colored text, still with no pill.

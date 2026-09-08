@@ -100,23 +100,31 @@ intact API-created dropdown is indistinguishable from no rule at all, so a
 bare-looking cell is not evidence of anything. `sheets_check` is authoritative
 for validation state.
 
-**The export can also brand a native Table's header row**, which is the second
-thing the picture is not truthful about. A render of the golden demo came back
-with every header carrying a column-type icon and a bracketed position,
-`Student [1]` through `Check [10]`, where the cells hold `Student` through
-`Check` and the Table's own column list holds the same ten plain names. The
-index and the icons are painted by the export and stored nowhere.
+**A cell note renders as a footnote**, which is the second thing the picture is
+not truthful about, and it is not a defect. The export appends a bracketed
+marker to the cell's text and lists the note bodies on an extra page after the
+grid, the way a printed document handles footnotes. It has nothing to do with
+Tables: a note on any cell does it. A render of the golden demo came back
+reading `Student [1]` through `Check [10]` because this guide asks for a note on
+every header, and every one of those notes earned a marker.
 
-It is conditional, and the condition is not yet isolated: another Table built
-the same way renders almost clean, with a type icon on its dropdown column only.
-So something other than being a Table decides it. The untested candidates are
-the header notes, the warning-only header protection, the frozen header, and a
-preset repaint of the header row.
+Two consequences worth designing around:
 
-**So a render is for the agent's own eyes.** Use it to check your own work,
-where a spurious `[1]` costs nothing because you can read the cells back. A
-picture going in front of people should be a **browser screenshot**, which shows
-the pills, shows the real headers, and is what a colleague actually sees.
+- **A tab with notes renders one more page than its grid needs.** Anything that
+  keeps only the first page silently drops the documentation, and anything that
+  treats the extra page as overflow is wrong about what it is.
+- **A render of a well-documented sheet does not look like the sheet.** The
+  better the documentation the odder the picture, so the sheets this plugin
+  should be proudest of are the ones whose renders read worst.
+
+Nothing is wrong with the sheet. The cells hold the plain names, and the marker
+is the export doing its job. Never rewrite a header to remove a bracket.
+
+**So a render is for the agent's own eyes.** For you the markers are a feature:
+they are how a picture shows that documentation exists at all, and the last page
+is the only way to read a note without spending another call. A picture going in
+front of people should be a **browser screenshot**, which shows the pills, shows
+the headers as they are, and is what a colleague actually sees.
 
 `sheets_render` never returns image bytes. The files arrive in `structuredContent.pages`, one
 entry per page: **`pages[0].path` locally, `pages[0].url` when hosted**. That is
