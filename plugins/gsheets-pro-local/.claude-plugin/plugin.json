@@ -10,7 +10,11 @@
   "homepage": "https://github.com/jordfan/gsheets-pro",
   "repository": "https://github.com/jordfan/gsheets-pro",
   "license": "MIT",
-  "keywords": ["google-sheets", "mcp-server", "stdio"],
+  "keywords": [
+    "google-sheets",
+    "mcp-server",
+    "stdio"
+  ],
   "userConfig": {
     "google_client_id": {
       "type": "string",

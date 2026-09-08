@@ -8,6 +8,10 @@ once it ships a first release.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-07
+
 Pre-release. Nothing has been published to npm, the MCP registry, or a
 plugin marketplace yet; this section describes what exists on `main` today,
 ahead of the v1.0 publication gate in `docs/PLAN.md` § Publication gate.
@@ -63,3 +67,4 @@ first time, and an unpublished OAuth consent screen expires its refresh
 token after seven days.
 
 [Unreleased]: https://github.com/jordfan/gsheets-pro/commits/main
+[0.1.0]: https://github.com/jordfan/gsheets-pro/releases/tag/v0.1.0
