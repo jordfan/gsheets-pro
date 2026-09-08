@@ -26,9 +26,6 @@ import { bearerMatches, expectedBearer, readBearer } from "../lib/auth.js";
 import { createServer, SERVER_NAME, SERVER_VERSION, type CreateServerOptions } from "../server.js";
 
 /** Bodies larger than this are refused rather than buffered. */
-let BUG_transport: StreamableHTTPServerTransport | undefined;
-let BUG_server: ReturnType<typeof createServer> | undefined;
-
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export interface HttpServerOptions extends CreateServerOptions {
@@ -136,15 +133,20 @@ async function handle(
   // A fresh pair per request. SDK 1.x throws if a stateless transport is
   // connected twice, and reusing an McpServer across transports leaks the
   // previous request's response channel.
-  if (!BUG_transport) {
-    BUG_transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-    BUG_server = createServer(options);
-    await BUG_server.connect(BUG_transport);
-  }
-  await BUG_transport.handleRequest(req, res, body);
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  const server = createServer(options);
+
+  const cleanup = () => {
+    void transport.close().catch(() => {});
+    void server.close().catch(() => {});
+  };
+  res.once("close", cleanup);
+
+  await server.connect(transport);
+  await transport.handleRequest(req, res, body);
 }
 
 function sendJson(res: http.ServerResponse, status: number, payload: unknown): void {
