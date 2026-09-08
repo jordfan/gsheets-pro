@@ -16,6 +16,8 @@ at what it built, and refuse to wreck a sheet other people edit.
 -->
 ![A roster built by gsheets-pro: a native Table with a frozen header, a themed status column, and a formula-driven fee column](docs/images/golden-roster.png)
 
+That sheet is real and public: [open the demo spreadsheet](https://docs.google.com/spreadsheets/d/1HII7AoE8OBxEUu1_cxlEa8XHpdvJpb-MVGuZCwBu0hE/edit) (view only, every name invented). It was built by `scripts/demo/build-golden.mjs` using only the plugin's own tools, and the image is a browser screenshot of it.
+
 ## What it does
 
 Every serious Sheets MCP server stops at values: the most-starred community
