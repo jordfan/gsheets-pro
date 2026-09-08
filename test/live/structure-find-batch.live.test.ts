@@ -364,6 +364,27 @@ live("sheets_structure, sheets_find and sheets_batch, live", () => {
     expect(ids).toContain(SPREADSHEET_ID);
   });
 
+  test("sheets_find folders returns folders rather than spreadsheets", async () => {
+    const result = unwrap(await find.handler({ action: "folders", limit: 5 }));
+    const folders = result["folders"] as Array<{ folder_id: string; name: string; url: string }>;
+    expect(Array.isArray(folders)).toBe(true);
+    for (const folder of folders) {
+      expect(folder.folder_id).toBeTruthy();
+      expect(folder.name).toBeTruthy();
+      expect(folder.url).toContain("/folders/");
+      // The point of the action: a folder is not a spreadsheet.
+      expect(folder.folder_id).not.toBe(SPREADSHEET_ID);
+    }
+    expect(String(result["drive_query"])).toContain("apps.folder");
+
+    // A folder id from this call is what `list` and `copy` take, so the round
+    // trip is worth proving rather than assuming.
+    if (folders.length) {
+      const scoped = unwrap(await find.handler({ action: "list", folder: folders[0].folder_id }));
+      expect(String(scoped["drive_query"])).toContain(`'${folders[0].folder_id}' in parents`);
+    }
+  });
+
   test("sheets_find copy makes a disposable copy, and copy_tab_to lands a tab in it", async () => {
     const copy = unwrap(await find.handler({ action: "copy", spreadsheet_id: SPREADSHEET_ID, title: COPY_TITLE }));
     copiedSpreadsheetId = String(copy["spreadsheet_id"]);
