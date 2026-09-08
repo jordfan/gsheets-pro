@@ -5,6 +5,14 @@
 //
 //   node scripts/release.mjs patch|minor|major|<x.y.z> [--dry-run] [--no-trailer]
 //
+// The first release is not a special case to set up by hand. If the version
+// files already say, for example, 0.1.0 and no v0.1.0 tag exists yet, run
+// `node scripts/release.mjs 0.1.0` directly: an explicit version equal to
+// the current one is accepted exactly when no tag for it exists yet, so
+// there is no need to edit the files down to 0.0.0 first just to give the
+// script something to bump from. Once v0.1.0 is tagged, running 0.1.0 again
+// fails, the same as any other version that isn't greater than current.
+//
 // What "together" means: package.json, both plugin manifests
 // (plugins/gsheets-pro/.claude-plugin/plugin.json,
 // plugins/gsheets-pro-local/.claude-plugin/plugin.json), and
@@ -88,6 +96,15 @@ function parseSemver(version) {
   return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
 
+function tagExists(version) {
+  try {
+    run("git", ["rev-parse", "-q", "--verify", `refs/tags/v${version}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function bump(current, spec) {
   if (spec === "patch" || spec === "minor" || spec === "major") {
     const { major, minor, patch } = parseSemver(current);
@@ -104,7 +121,21 @@ function bump(current, spec) {
     nextTuple[0] > nowTuple[0] ||
     (nextTuple[0] === nowTuple[0] && nextTuple[1] > nowTuple[1]) ||
     (nextTuple[0] === nowTuple[0] && nextTuple[1] === nowTuple[1] && nextTuple[2] > nowTuple[2]);
-  if (!isGreater) fail(`${explicit} is not greater than the current version ${current}.`);
+  const isSame = nextTuple.every((n, i) => n === nowTuple[i]);
+  // Equal to the current version is fine exactly once: cutting the first
+  // release at whatever number the files already carry. package.json,
+  // both plugin manifests, and marketplace.json start most projects at
+  // 0.1.0 before any tag exists, and there is no earlier version to bump
+  // from. Once a tag for this version exists, equal is a re-release and
+  // has to fail like anything else that isn't greater.
+  if (isSame && !tagExists(explicit)) return explicit;
+  if (!isGreater) {
+    fail(
+      isSame
+        ? `v${explicit} is already tagged. Bump to a version greater than ${current} instead.`
+        : `${explicit} is not greater than the current version ${current}.`,
+    );
+  }
   return explicit;
 }
 
@@ -238,7 +269,11 @@ function main() {
     );
   }
 
-  process.stdout.write(`release.mjs: ${currentVersion} -> ${nextVersion}\n\n`);
+  process.stdout.write(
+    currentVersion === nextVersion
+      ? `release.mjs: cutting the first tag at v${nextVersion} (the files already say this; no version bump needed)\n\n`
+      : `release.mjs: ${currentVersion} -> ${nextVersion}\n\n`,
+  );
 
   process.stdout.write("running the same gates CI runs, before touching anything...\n");
   runLive("npm", ["run", "typecheck"]);

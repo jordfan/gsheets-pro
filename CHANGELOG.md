@@ -14,42 +14,42 @@ ahead of the v1.0 publication gate in `docs/PLAN.md` § Publication gate.
 
 ### Added
 
-- Core server library and both transports (stdio and stateless HTTP), with
-  `sheets_open` and `sheets_read` live tested against a real spreadsheet.
-- `sheets_write` (range, append, upsert, fill, log, batch `rows` form), with
-  the formula guard, registry refusals, and the recalc-shaped error gate on
-  every write.
-- `sheets_style` (preset roles and explicit props, theme apply, banding,
-  sheet properties) and the preset compiler (`neutral`, `park`,
-  `finance-classic`).
-- `sheets_table`, `sheets_settings`, `sheets_validation`, and
-  `sheets_conditional_format`, covering native Tables, the Settings and
-  Assumptions block with auto named ranges, dropdown and other validation
-  rules, and fingerprint-addressed conditional formatting.
-- `sheets_structure`, `sheets_find`, and `sheets_batch`, covering tab and
-  dimension operations, Drive-side search and sharing, and the raw
-  `batchUpdate` escape hatch for the request types the other tools do not
-  wrap.
-- `sheets_check`, the lint (seven v1 rules: formula errors, merges in data,
-  missing frozen header, writes outside designated columns, key column
-  blank or duplicate, check-column flags, colleague-unsafe text), and
-  `sheets_render`, which paints a tab or range to a PNG and never returns
-  image bytes over MCP.
-- The house-style skill, its references, two worked example transcripts, the
-  card generator with a CI token budget, the `session-start` and
-  `first-call` hooks that inject the card, the `sheet-reviewer` agent, and
-  the `setup` and `review` skills.
-- The repo-level registry (`.claude/gsheets-pro.json`) and developer-metadata
-  contract, protecting known shared spreadsheets and agent-created sheets
-  from unsafe rewrites.
-- A Dockerfile, `docs/hosting.md`, and `scripts/vendor.mjs` for teams whose
-  scheduled Claude Code runs need the guide copied into their own repo,
-  since a plugin declared in a repository's settings does not install in a
-  cloud run (`docs/cloud.md`).
-- 801 offline tests (vitest), covering every tool, every lint rule, both
+- Core server library, stdio and stateless HTTP transports.
+- All 13 v1.0 tools: `sheets_open`, `sheets_read`, `sheets_write`,
+  `sheets_table`, `sheets_settings`, `sheets_style`, `sheets_validation`,
+  `sheets_conditional_format`, `sheets_structure`, `sheets_find`,
+  `sheets_batch`, `sheets_check`, `sheets_render`.
+- `sheets_read`: several `ranges` in one call.
+- `sheets_write`: a write ledger every writing tool records to, which
+  `sheets_check`'s lint rule L14 (writes outside designated columns) reads
+  instead of taking its own `writes` argument.
+- `sheets_table`: writes the header cells it names when it creates a Table,
+  rather than requiring them to exist first.
+- `sheets_validation`: records the rules it sets, so it knows its own the
+  next time it has to decide whether a rule is `ui_owned`.
+- `sheets_find`: a `folders` action, and paging (`page_token`) on both
+  `list` and `folders`.
+- The preset compiler (`neutral`, `park`, `finance-classic`): a `muted_fill`
+  role, distinct from the `muted` text color, and contrast validation
+  across every fill a preset can emit, not only the header.
+- The repo-level registry (`.claude/gsheets-pro.json`): owner, writable
+  columns, `positional_rows`, `read_only`, and per-tab overrides under a
+  `sheets` key.
+- The developer-metadata contract, protecting agent-created sheets from
+  unsafe rewrites.
+- The house-style skill, its references, worked example transcripts, the
+  card generator with a CI token budget, four hooks, the `sheet-reviewer`
+  agent, and the `setup` and `review` skills.
+- A Dockerfile, `docs/hosting.md`, and the `gsheets-pro vendor` CLI
+  subcommand, for repositories whose scheduled Claude Code runs need the
+  guide copied in, since a plugin declared in a repository's settings does
+  not install in a cloud run (`docs/cloud.md`).
+- The project site (`site/`) and its publish workflow.
+- 951 offline tests (vitest), covering every tool, every lint rule, both
   transports, and the field-mask, registry, contract, and theme-compilation
-  logic. A separate live suite, paced through a shared quota bucket, runs
-  against a disposable spreadsheet and skips itself without one.
+  logic. A separate live suite (45 cases), paced through a shared quota
+  bucket, runs against a disposable spreadsheet and skips itself without
+  one.
 
 ### Known limitations
 
