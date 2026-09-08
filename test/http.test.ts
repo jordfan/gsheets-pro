@@ -102,11 +102,17 @@ describe("health and routing", () => {
     expect(body["name"]).toBe("gsheets-pro");
   });
 
-  test("the renders route explains itself rather than 404ing", async () => {
+  test("an unsigned render URL is a 404, not an explanation", async () => {
+    // Every failure on this route answers the same way. Saying "bad signature"
+    // rather than "no such file" would confirm that the file exists.
     const response = await fetch(`${base}/renders/abc.png`);
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(404);
     const body = (await response.json()) as Record<string, unknown>;
-    expect(String(body["hint"])).toContain("sheets_render");
+    expect(body["error"]).toBe("not_found");
+  });
+
+  test("the renders route does not list its directory", async () => {
+    expect((await fetch(`${base}/renders/`)).status).toBe(404);
   });
 
   test("an unknown path is a plain 404", async () => {

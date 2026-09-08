@@ -27,7 +27,11 @@ independent: `ERROR`, `NULL_VALUE`, `DIVIDE_BY_ZERO`, `VALUE`, `REF`, `NAME`,
 `NUM`, `N_A`, `LOADING`. Each entry carries a count, up to a hundred locations,
 and how many locations were truncated.
 
-Four statuses, and every write's `check` uses the same four:
+The `check` a write returns carries the same fields with a smaller summary: it
+counts by error type and names the offending cells in its own `cells` list,
+because it covers the range one call touched rather than a whole spreadsheet.
+
+Four statuses, shared by the lint and by every write's `check`:
 
 - **`success`** means no error-severity finding. Warnings may still be present.
 - **`errors_found`** means at least one. This is a stop.
@@ -36,7 +40,8 @@ Four statuses, and every write's `check` uses the same four:
   genuinely slow, not that the sheet is clean. Wait and run it again.
 - **`skipped`** means the check did not run: nothing was touched that could be
   read back, or the call passed `check: false`. It is not a clean bill of
-  health, and the `note` says which of the two it was.
+  health, and the `note` says which of the two it was. Only a write reports it.
+  `sheets_check` always reads, so it never returns `skipped`.
 
 The tool call succeeding is not the sheet being clean. Read `status`.
 
@@ -67,7 +72,30 @@ them on somebody else's sheet you were asked to append a row to.
 
 L23 matches on patterns, not bare words. A spreadsheet tracking software work
 will legitimately contain the word "agent", and a sheet can carry its own
-allowlist in the registry.
+allowlist in the registry. It runs only where somebody other than the writer
+reads the text: a sheet the registry marks `human` or `shared`, or one that sets
+`colleague_safe_text`. The patterns are the ones `sheets_write` uses to refuse
+text before it lands, so the lint is the same check run over a sheet that was
+written by hand or by an older tool.
+
+L14 asks what this session did, not what is in the sheet. A value sitting in
+somebody else's column proves nothing, because they probably typed it, so the
+rule reads the ranges the server recorded itself writing. That record lives in
+memory and does not survive a restart. Pass `writes` with A1 ranges to add
+writes the server did not make.
+
+## Scoping a check
+
+Everything is optional except the spreadsheet id.
+
+- `sheets`, an array of tab names. Every visible tab when omitted.
+- `sheet` and `range`, to narrow to part of one tab.
+- `rules`, an array of ids, to run a subset. An id no rule answers to is
+  reported in `notes` rather than ignored.
+
+Two reads happen per call: the values, rendered as formulas, which is also how
+the tool learns each tab's real extent, and then a masked grid read bounded to
+exactly that extent.
 
 ## What is not in v1
 

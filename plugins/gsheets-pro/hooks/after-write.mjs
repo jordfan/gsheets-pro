@@ -31,9 +31,16 @@ const WRITE_TOOLS = new Set([
 const UNCHECKED_WRITE_THRESHOLD = 4;
 
 /**
- * Find the write's error gate in the tool response. The structured field is the
- * contract; the text scan is a fallback for a transport that flattens the
- * response to prose on the way through.
+ * Find the error gate in the tool response.
+ *
+ * Two shapes carry a status, and both are read here. A write nests its gate
+ * under `check`, with `error_summary` as counts keyed on the error type.
+ * `sheets_check` puts the same fields at the top level of its own response and
+ * gives each entry a `count` and a list of `locations`. `describeErrors` below
+ * handles either form, which is what lets one function serve both.
+ *
+ * The structured fields are the contract; the text scan is a fallback for a
+ * transport that flattens the response to prose on the way through.
  */
 function readGate(toolResponse) {
   if (!toolResponse) return null;
@@ -41,7 +48,10 @@ function readGate(toolResponse) {
   const structured =
     toolResponse.structuredContent?.check ??
     toolResponse.check ??
-    toolResponse.structuredContent?.result?.check;
+    toolResponse.structuredContent?.result?.check ??
+    // sheets_check reports on the whole spreadsheet rather than on one write,
+    // so its status sits at the top level with no `check` wrapper.
+    (toolResponse.structuredContent?.status ? toolResponse.structuredContent : null);
 
   if (structured?.status) return structured;
 
@@ -83,7 +93,24 @@ async function main() {
   const state = readState(input.session_id);
 
   if (tool === "sheets_check") {
+    const report = readGate(input.tool_response);
     writeState(input.session_id, { checked: true });
+
+    // The lint having run is not the lint having passed, and a model that reads
+    // "tool call succeeded" and moves on is the exact failure this whole hook
+    // exists for. So an errors_found report goes back in front of it, with the
+    // error types and the first few addresses.
+    if (report?.status === "errors_found") {
+      emit({
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext:
+            `sheets_check came back errors_found.${describeErrors(report)} ` +
+            `That is a stop, not a warning. Fix those cells and run sheets_check again ` +
+            `before doing anything else with this spreadsheet.`,
+        },
+      });
+    }
     emit(null);
   }
 

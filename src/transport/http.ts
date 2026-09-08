@@ -19,10 +19,14 @@
  * makes that work, and `test/http.test.ts` holds it to it.
  */
 
+import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { bearerMatches, expectedBearer, readBearer } from "../lib/auth.js";
+import { renderDir as defaultRenderDir, setRenderMode } from "../lib/rendermode.js";
+import { verifyRenderRequest } from "../lib/rendersign.js";
 import { createServer, SERVER_NAME, SERVER_VERSION, type CreateServerOptions } from "../server.js";
 
 /** Bodies larger than this are refused rather than buffered. */
@@ -33,8 +37,10 @@ export interface HttpServerOptions extends CreateServerOptions {
   mcpPaths?: string[];
   /** Override the bearer requirement. Defaults to `GSHEETS_PRO_TOKEN`. */
   bearer?: string | undefined;
-  /** Where rendered PNGs live once the render tool ships. */
+  /** Where rendered PNGs are written and served from. */
   renderDir?: string;
+  /** The origin signed render URLs hang off, for example https://sheets.example.com. */
+  publicUrl?: string;
 }
 
 export function createHttpHandler(
@@ -42,6 +48,14 @@ export function createHttpHandler(
 ): (req: http.IncomingMessage, res: http.ServerResponse) => void {
   const mcpPaths = new Set(options.mcpPaths ?? ["/mcp", "/"]);
   const bearer = options.bearer !== undefined ? options.bearer : expectedBearer();
+
+  // A render has to know it is hosted before the first call, because the answer
+  // it gives (a path or a URL) is different, and a path to a container's
+  // filesystem is no answer at all.
+  setRenderMode("hosted", {
+    ...(options.renderDir ? { dir: options.renderDir } : {}),
+    ...(options.publicUrl ? { publicUrl: options.publicUrl } : {}),
+  });
 
   return (req, res) => {
     void handle(req, res, mcpPaths, bearer, options).catch((error: unknown) => {
@@ -66,9 +80,9 @@ async function handle(
   options: HttpServerOptions,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const requestPath = url.pathname.replace(/\/+$/, "") || "/";
 
-  if (req.method === "GET" && (path === "/health" || path === "/healthz")) {
+  if (req.method === "GET" && (requestPath === "/health" || requestPath === "/healthz")) {
     sendJson(res, 200, {
       status: "ok",
       name: SERVER_NAME,
@@ -80,20 +94,13 @@ async function handle(
     return;
   }
 
-  if (path.startsWith("/renders/")) {
-    // The render tool lands in a later phase. Until then this route exists so
-    // the URL shape is settled and a caller gets an explanation, not a 404 from
-    // a server that looks like it is missing.
-    sendJson(res, 501, {
-      error: "not_implemented",
-      message: "Rendering is not part of this build yet.",
-      hint: "sheets_render arrives with the verify loop. Until then, sheets_read with include.formats reports what the sheet looks like.",
-    });
+  if (requestPath.startsWith("/renders/")) {
+    serveRender(req, res, requestPath, url, options);
     return;
   }
 
-  if (!mcpPaths.has(path)) {
-    sendJson(res, 404, { error: "not_found", message: `Nothing is served at ${path}.` });
+  if (!mcpPaths.has(requestPath)) {
+    sendJson(res, 404, { error: "not_found", message: `Nothing is served at ${requestPath}.` });
     return;
   }
 
@@ -147,6 +154,81 @@ async function handle(
 
   await server.connect(transport);
   await transport.handleRequest(req, res, body);
+}
+
+/**
+ * Serve one rendered PNG.
+ *
+ * The MCP endpoint is behind a bearer, but this one cannot be: whatever fetches
+ * these URLs does it with an ordinary GET and has no way to attach a header. So
+ * the URL itself is the credential, signed and short lived (`lib/rendersign.ts`),
+ * and every way of failing answers 404 with nothing useful in the body. A
+ * different answer for "wrong signature" than for "no such file" would tell a
+ * caller which spreadsheets have been rendered, which is the one thing this
+ * route knows and has no business saying.
+ *
+ * There is no listing. `/renders/` with no name is a 404 like everything else.
+ */
+function serveRender(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  requestPath: string,
+  url: URL,
+  options: HttpServerOptions,
+): void {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.setHeader("Allow", "GET, HEAD");
+    sendJson(res, 405, { error: "method_not_allowed", message: "Renders are read only." });
+    return;
+  }
+
+  const notFound = (): void => {
+    sendJson(res, 404, { error: "not_found", message: "No such render." });
+  };
+
+  const name = requestPath.slice("/renders/".length);
+  if (!name) {
+    notFound();
+    return;
+  }
+
+  const verdict = verifyRenderRequest(name, {
+    exp: url.searchParams.get("exp"),
+    sig: url.searchParams.get("sig"),
+  });
+  if (!verdict.ok) {
+    notFound();
+    return;
+  }
+
+  const dir = options.renderDir ?? defaultRenderDir();
+  const file = path.join(dir, verdict.name);
+  // The name pattern already refuses separators. Resolving and re-checking is
+  // the belt to that pair of braces, and it costs nothing.
+  if (path.dirname(path.resolve(file)) !== path.resolve(dir)) {
+    notFound();
+    return;
+  }
+
+  let bytes: Buffer;
+  try {
+    bytes = fs.readFileSync(file);
+  } catch {
+    notFound();
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "image/png",
+    "Content-Length": bytes.length,
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+  });
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
+  res.end(bytes);
 }
 
 function sendJson(res: http.ServerResponse, status: number, payload: unknown): void {
