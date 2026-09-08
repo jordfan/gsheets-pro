@@ -2,7 +2,7 @@
   "mcpServers": {
     "sheets": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/../../dist/cli.js", "stdio"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/start.mjs", "stdio"],
       "env": {
         "GSHEETS_PRO_DATA": "${CLAUDE_PLUGIN_DATA}",
         "GSHEETS_PRO_CLIENT_ID": "${user_config.google_client_id}",

@@ -13,6 +13,12 @@ FROM node:24-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+# package.json's "prepare" script (scripts/prepare.mjs) runs on this npm ci.
+# It builds only when src/ is present, which it deliberately is not yet at
+# this point (src/ is copied in below, kept separate so this dependency-only
+# layer caches independently of source changes) — but the script itself has
+# to exist for npm to run it at all, so it comes along with package.json.
+COPY scripts/prepare.mjs ./scripts/prepare.mjs
 RUN npm ci
 
 COPY tsconfig.json ./
