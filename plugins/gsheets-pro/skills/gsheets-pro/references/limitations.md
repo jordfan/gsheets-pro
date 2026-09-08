@@ -100,7 +100,25 @@ intact API-created dropdown is indistinguishable from no rule at all, so a
 bare-looking cell is not evidence of anything. `sheets_check` is authoritative
 for validation state.
 
-It never returns image bytes. The files arrive in `structuredContent.pages`, one
+**The export can also brand a native Table's header row**, which is the second
+thing the picture is not truthful about. A render of the golden demo came back
+with every header carrying a column-type icon and a bracketed position,
+`Student [1]` through `Check [10]`, where the cells hold `Student` through
+`Check` and the Table's own column list holds the same ten plain names. The
+index and the icons are painted by the export and stored nowhere.
+
+It is conditional, and the condition is not yet isolated: another Table built
+the same way renders almost clean, with a type icon on its dropdown column only.
+So something other than being a Table decides it. The untested candidates are
+the header notes, the warning-only header protection, the frozen header, and a
+preset repaint of the header row.
+
+**So a render is for the agent's own eyes.** Use it to check your own work,
+where a spurious `[1]` costs nothing because you can read the cells back. A
+picture going in front of people should be a **browser screenshot**, which shows
+the pills, shows the real headers, and is what a colleague actually sees.
+
+`sheets_render` never returns image bytes. The files arrive in `structuredContent.pages`, one
 entry per page: **`pages[0].path` locally, `pages[0].url` when hosted**. That is
 the only key, and reading for another one is how a render that worked looks like
 a render that produced nothing. Rendering needs `pdftoppm` from poppler on the

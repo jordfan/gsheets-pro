@@ -66,15 +66,22 @@ The tools you should use: `sheets_open`, `sheets_read`, `sheets_check`,
 - Does anything look accidental: a stray bold cell, one row a different color, a
   column with no header, a tab named `Sheet1`?
 
-A render is truthful about formatting. Fills, fonts, borders, banding, merges,
-column widths, and conditional-format rules all paint, so a formatting problem
-you can see in the image is a real one.
+A render is truthful about formatting, with two exceptions. Fills, fonts,
+borders, banding, merges, column widths, and conditional-format rules all paint,
+so a formatting problem you can see in the image is a real one.
 
-**Dropdowns are the exception: none of them render as pills.** A rule the API
-created shows as plain black text, which looks exactly like a cell carrying no
-rule at all, so **never report a missing dropdown from an image**. Check
-`sheets_check` for validation state instead, and say in your report which
-findings came from the lint rather than from looking.
+**Dropdowns never render as pills.** A rule the API created shows as plain black
+text, which looks exactly like a cell carrying no rule at all, so **never report
+a missing dropdown from an image**. Check `sheets_check` for validation state
+instead, and say in your report which findings came from the lint rather than
+from looking.
+
+**A Table's header row can come back branded.** The export sometimes gives each
+header a column-type icon and a bracketed position, so headers reading `Student`
+through `Check` render as `Student [1]` through `Check [10]`. None of that is in
+the spreadsheet. So **never report a header name from an image**: read the
+header cells before writing any finding about them, and never file the brackets
+themselves as a defect.
 
 One thing the image does tell you here, and it deserves a deliberate look. A
 dropdown **a person colored by hand** shows as colored text, still with no pill.
@@ -83,6 +90,11 @@ check that they are still colored. Rewriting a validation rule destroys those
 colors, and the API cannot read them back to restore them, so a column of
 dropdowns that has gone plain black is a real and unrecoverable finding. Put it
 at the top of the list.
+
+Because of those two exceptions, the render you are looking at is a working
+image for your own eyes, not a preview of what anybody else will see. If the
+caller intends to show this spreadsheet to people, say in your report that a
+browser screenshot is what to send them.
 
 ## What to return
 

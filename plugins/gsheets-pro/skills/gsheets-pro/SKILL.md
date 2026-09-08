@@ -34,7 +34,10 @@ actually has.
    `pages[0].url` when the server is hosted. There is no other key, so a render
    that seems to have produced nothing was read wrong rather than run wrong. Fix
    what you see, re-render only the tabs you changed, and stop. One fix pass,
-   not an open-ended polish loop.
+   not an open-ended polish loop. **A render is for your own eyes.** Dropdowns
+   never paint as pills, and a Table's header row can come back carrying icons
+   and bracketed indices the spreadsheet does not have, so a picture going in
+   front of a person should be a browser screenshot instead.
 
 A clean `sheets_check` proves your formulas evaluate. It does not prove they are
 right. An off-by-one range gives you a green lint and wrong numbers. Write two
@@ -176,15 +179,15 @@ resolves them.
 `status: "pending"` means formulas were still calculating (`LOADING`), not that
 the sheet is clean. Wait and run it again. `status: "errors_found"` is a stop.
 
-A render is truthful about formatting, with one exception. It paints fills,
+A render is truthful about formatting, with two exceptions. It paints fills,
 fonts, borders, banding, merges, column widths, and conditional-format rules,
 including a rule whose format is a font change rather than a fill, and a frozen
 header repeats on every page. Trust your eyes on all of that, and on layout:
 truncated columns, awkward wraps, illegible contrast, a header that does not
 look like a header.
 
-The exception is **dropdowns, which never render as pills**. What a render shows
-depends on who made the rule, and the difference is useful:
+**Dropdowns never render as pills.** What you see depends on who made the rule,
+and the difference is useful:
 
 - A rule **the API created** shows as plain black text. No pill, no arrow, no
   color, whether it came from a Table column typed `DROPDOWN` or from
@@ -197,6 +200,17 @@ rule exists, because an intact API-created dropdown looks exactly like no rule
 at all. `sheets_check` is authoritative for validation state. Confirm a dropdown
 there, and never re-create one because the picture looked bare: re-creating it
 is what destroys the colors.
+
+**A Table's header row can come back branded.** The export sometimes paints each
+header with a column-type icon and a bracketed position, so a header reading
+`Student` renders as `Student [1]` and the row runs on to `Check [10]`. None of
+that is in the spreadsheet. The cells hold the plain names and so does the
+Table's own column list. When it happens it is the picture decorating a Table,
+not a header you need to fix, so read the values back before believing it.
+
+Both exceptions point the same way. **A render is for your own eyes.** Use it to
+check your work. Anything going in front of a person should be a browser
+screenshot, which is what a colleague actually sees.
 
 ## References
 

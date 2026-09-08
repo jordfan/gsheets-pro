@@ -21,7 +21,10 @@
    `pages[0].url` when the server is hosted. There is no other key, so a render
    that seems to have produced nothing was read wrong rather than run wrong. Fix
    what you see, re-render only the tabs you changed, and stop. One fix pass,
-   not an open-ended polish loop.
+   not an open-ended polish loop. **A render is for your own eyes.** Dropdowns
+   never paint as pills, and a Table's header row can come back carrying icons
+   and bracketed indices the spreadsheet does not have, so a picture going in
+   front of a person should be a browser screenshot instead.
 
 A clean `sheets_check` proves your formulas evaluate. It does not prove they are
 right. An off-by-one range gives you a green lint and wrong numbers. Write two

@@ -121,17 +121,27 @@ just not yet machine-checked, which means you are the check.
 
 ## What the lint sees that a render does not
 
-Only one thing, but it matters: **a render can never confirm that a dropdown
-exists.** No validation rule paints as a pill, and one the API created paints as
-plain black text, indistinguishable from a cell carrying no rule at all. So a
-bare-looking cell in an image is not evidence that anything is missing. The lint
-is authoritative for validation state.
+Two things, and they are the two the picture gets wrong.
+
+**A render can never confirm that a dropdown exists.** No validation rule paints
+as a pill, and one the API created paints as plain black text, indistinguishable
+from a cell carrying no rule at all. So a bare-looking cell in an image is not
+evidence that anything is missing. The lint is authoritative for validation
+state.
 
 The near miss is worth knowing. A rule **a person colored by hand** paints as
 colored text, still with no pill. So an image does tell you whether a
 colleague's chip colors survived, even though it cannot tell you whether a rule
 is there. Those colors are the fragile thing in the whole system: rewriting the
 rule destroys them, and the API cannot read them back to put them right.
+
+**A render can show header text the spreadsheet does not contain.** On a native
+Table the export sometimes brands the header row, giving each header a
+column-type icon and a bracketed position, so a row of headers reading `Student`
+through `Check` comes back as `Student [1]` through `Check [10]`. None of it is
+stored anywhere. The lint reads the cells and the Table's own column list, so it
+sees the real names. Believe the lint, and never rename a header to match what a
+render showed.
 
 Everything else in a render is trustworthy. It paints fills, fonts, borders,
 banding, merges, column widths, and conditional-format rules, including rules
@@ -143,3 +153,8 @@ So the split is narrower than it sounds. Use the render for layout and for
 formatting, use the lint for validation state and for everything structural it
 can see that no picture shows: formula errors, merges inside a data region, a
 key column with duplicates, text that does not read as a colleague's.
+
+Both exceptions are reasons a render is for your own eyes rather than for
+anybody else's. A picture going in front of a person should be a browser
+screenshot, which shows the pills, shows the real headers, and is what a
+colleague actually sees when they open the file.
