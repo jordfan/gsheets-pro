@@ -40,10 +40,12 @@ The tools you should use: `sheets_open`, `sheets_read`, `sheets_check`,
    perfectly clean sheet full of wrong numbers, and this step is the only thing
    that catches it.
 5. **`sheets_render` each tab, then look at the images.** Not skim. Look at them
-   the way somebody opening the file cold would. The response says where each
-   page went: a file path, which `Read` opens, or a short-lived signed URL when
-   the server is hosted, which you fetch. Fetch a URL in the same turn; it
-   expires in five minutes.
+   the way somebody opening the file cold would. The files are in
+   `structuredContent.pages`, one entry per page: `pages[0].path` locally, which
+   `Read` opens, or `pages[0].url` when the server is hosted, which you fetch in
+   the same turn because it expires in five minutes. There is no other key, so a
+   render that appears to have produced no file is a key read wrong rather than
+   a render to run again.
 6. **Read the sheet's own words.** Header notes, validation help text, status
    labels, the About tab. Would a colleague understand them without being told
    anything? Is there anything in there that reads as machine output rather than

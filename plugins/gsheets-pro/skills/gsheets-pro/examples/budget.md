@@ -316,8 +316,9 @@ perfectly whether or not it is looking at the right column.
 sheets_render { "sheet": "Summary" }
 ```
 
-Read the image. Check that the currency column is wide enough, that no cell
-shows `###`, and that the labels are not truncated. Then stop.
+Read the image at `pages[0].path`. Check that the currency column is wide
+enough, that no cell shows `###`, and that the labels are not truncated. Then
+stop.
 
 ## The reviewer pass
 

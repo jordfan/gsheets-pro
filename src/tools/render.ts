@@ -81,7 +81,9 @@ type RenderArgs = {
 };
 
 const DESCRIPTION = [
-  "Render one tab, or a range of it, to a PNG and hand back where to find it: a file path locally, a short-lived signed URL when this server is hosted. Read the image and look at it.",
+  "Render one tab, or a range of it, to a PNG. Read the image and look at it.",
+  "",
+  "The files come back in structuredContent.pages, one entry per page of a long tab. Locally each entry has a path: read pages[0].path. When this server is hosted each entry has a url instead, valid for five minutes: fetch pages[0].url. There is no other key; a render that seems to have produced no file is a caller reading the wrong one.",
   "",
   "Use it once after a build and again after fixing what you saw. It is the only way to catch a column too narrow to read, a cell showing ###, an unreadable colour, or a row that wrapped to three lines.",
   "",
@@ -206,17 +208,21 @@ export function createRenderTool(
           caveat: RENDER_CAVEAT,
         };
 
+        // The prose names the key as well as printing the value. A caller that
+        // reads the text still has to reach into structuredContent to act, and
+        // guessing which field holds the file is what produced a run of renders
+        // that all "succeeded" and handed back nothing anybody could open.
         const where = hosted
-          ? outputs.map((o) => `  page ${o.page}: ${o.url}`).join("\n")
-          : outputs.map((o) => `  page ${o.page}: ${o.path}`).join("\n");
+          ? outputs.map((o) => `  pages[${o.page as number - 1}].url: ${o.url}`).join("\n")
+          : outputs.map((o) => `  pages[${o.page as number - 1}].path: ${o.path}`).join("\n");
 
         return ok(
           lines(
-            `Rendered ${info.title}${args.range ? `!${args.range}` : ""} at ${args.dpi ?? DEFAULT_DPI} dpi.`,
+            `Rendered ${info.title}${args.range ? `!${args.range}` : ""} at ${args.dpi ?? DEFAULT_DPI} dpi, ${count(outputs.length, "page")}.`,
             where,
             hosted
               ? `\nThe links are valid for ${Math.round(RENDER_URL_TTL_MS / 60000)} minutes. Fetch them now rather than later.`
-              : "\nRead the file to look at it.",
+              : "\nRead the file at that path to look at it.",
             warnings.length ? `\nWorth knowing:\n${warnings.map((w) => `- ${w}`).join("\n")}` : undefined,
             `\n${RENDER_CAVEAT}`,
           ),

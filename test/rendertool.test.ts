@@ -107,7 +107,7 @@ describe("local mode", () => {
     expect(pages).toHaveLength(1);
     expect(fs.existsSync(pages[0].path)).toBe(true);
     expect(pages[0].url).toBeUndefined();
-    expect(response.content[0].text).toContain("Read the file to look at it.");
+    expect(response.content[0].text).toContain("Read the file at that path to look at it.");
   });
 
   test("the gid is explicit and the unused range parameters are absent", async () => {
@@ -228,5 +228,77 @@ describe("the Drive fallback", () => {
     expect(errorOf(response)?.code).toBe("permission_denied");
     // The HTML body can carry the pre-signed redirect URL, so it never appears.
     expect(response.content[0].text).not.toContain("<html>");
+  });
+});
+
+/**
+ * The key the docs name has to be the key the tool emits.
+ *
+ * This is the defect the golden build hit: a caller looked for the files under
+ * a key the tool does not use, read a successful render as an empty one, and
+ * re-rendered five times. Nothing failed, so nothing caught it. These cases tie
+ * the three places that can drift, the tool description, the prose, and
+ * structuredContent, to one name.
+ */
+describe("the documented key is the emitted key", () => {
+  const description = () =>
+    createRenderTool({ getContext: async () => makeContext() }).config.description;
+
+  test("structuredContent carries the files under pages, and nowhere else", async () => {
+    const tool = toolFor(makeContext());
+    const body = (await tool.handler({ spreadsheet_id: SPREADSHEET_ID, sheet: "Roster" }))
+      .structuredContent as Record<string, unknown>;
+
+    expect(Array.isArray(body.pages)).toBe(true);
+    expect(body.outputs).toBeUndefined();
+    expect(body.files).toBeUndefined();
+    expect(body.images).toBeUndefined();
+    expect(body.paths).toBeUndefined();
+  });
+
+  test("the description names pages, and names the field to read in each mode", () => {
+    const text = description();
+    expect(text).toContain("structuredContent.pages");
+    expect(text).toContain("pages[0].path");
+    expect(text).toContain("pages[0].url");
+  });
+
+  test("every key the description names is a key an entry actually has", async () => {
+    const local = (await toolFor(makeContext()).handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: "Roster",
+    })).structuredContent as { pages: Array<Record<string, unknown>> };
+    expect(local.pages[0]).toHaveProperty("path");
+
+    setRenderMode("hosted", { dir });
+    const hosted = (await toolFor(makeContext()).handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: "Roster",
+    })).structuredContent as { pages: Array<Record<string, unknown>> };
+    expect(hosted.pages[0]).toHaveProperty("url");
+  });
+
+  test("the prose names the key beside the value, in both modes", async () => {
+    const local = await toolFor(makeContext()).handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: "Roster",
+    });
+    expect(local.content[0].text).toContain("pages[0].path:");
+
+    setRenderMode("hosted", { dir });
+    const hosted = await toolFor(makeContext()).handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: "Roster",
+    });
+    expect(hosted.content[0].text).toContain("pages[0].url:");
+  });
+
+  test("a second page is named by its own index, not all as page zero", async () => {
+    const body = (await toolFor(makeContext(), 2).handler({
+      spreadsheet_id: SPREADSHEET_ID,
+      sheet: "Roster",
+    })) as { content: Array<{ text: string }> };
+    expect(body.content[0].text).toContain("pages[0].path:");
+    expect(body.content[0].text).toContain("pages[1].path:");
   });
 });

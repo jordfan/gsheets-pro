@@ -156,11 +156,15 @@ Two ways to fix it, and the plugin should pick one:
 Until then the demo sets `status_fill_rules: false` and carries status in words,
 with one conditional rule on the Check column.
 
-**3. `sheets_render` reports its files under `pages`, not `outputs`.** A caller
-reading the wrong key gets a successful render and no file, which is what
-happened here and what sent a retry loop through five wasted builds. Not a bug,
-but the tool's prose says "hands back where to find it" without naming the key.
-The description should name `pages[].path` and `pages[].url` explicitly.
+**3. `sheets_render` reports its files under `pages`, and nothing said so.**
+Fixed. A caller reading for another key gets a successful render and no file,
+which is what happened here and what sent a retry loop through five wasted
+builds. No document ever named a different key; the problem was that none named
+this one either, so the tool's "hands back where to find it" left the caller to
+guess. The description, the response prose, the card, the skill, the reviewer
+agent, and both example transcripts now say `pages[0].path` and `pages[0].url`,
+and `test/rendertool.test.ts` ties the description to the emitted key so the two
+cannot drift apart again.
 
 **4. Hand-picked column widths are a losing game, and the skill should say so.**
 The first render truncated the Check column. Widening it truncated the

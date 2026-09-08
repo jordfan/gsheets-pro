@@ -100,8 +100,10 @@ intact API-created dropdown is indistinguishable from no rule at all, so a
 bare-looking cell is not evidence of anything. `sheets_check` is authoritative
 for validation state.
 
-It returns a **file path locally, or a short-lived signed URL when hosted, never
-image bytes**. Read the file. Rendering needs `pdftoppm` from poppler on the
+It never returns image bytes. The files arrive in `structuredContent.pages`, one
+entry per page: **`pages[0].path` locally, `pages[0].url` when hosted**. That is
+the only key, and reading for another one is how a render that worked looks like
+a render that produced nothing. Rendering needs `pdftoppm` from poppler on the
 machine running the server, and a render on a small hosted instance is
 serialized and size-capped, so a very wide sheet may come back scaled down.
 

@@ -17,8 +17,11 @@
    means stop and fix, not continue and hope.
 5. **`sheets_check` before you call it done.** It is the lint. Clear every
    error-severity finding. Justify any warning you leave in one sentence.
-6. **`sheets_render` once, then look.** Fix what you see, re-render only the
-   tabs you changed, and stop. One fix pass, not an open-ended polish loop.
+6. **`sheets_render` once, then look.** The image is at `pages[0].path`, or
+   `pages[0].url` when the server is hosted. There is no other key, so a render
+   that seems to have produced nothing was read wrong rather than run wrong. Fix
+   what you see, re-render only the tabs you changed, and stop. One fix pass,
+   not an open-ended polish loop.
 
 A clean `sheets_check` proves your formulas evaluate. It does not prove they are
 right. An off-by-one range gives you a green lint and wrong numbers. Write two
