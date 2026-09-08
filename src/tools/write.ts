@@ -33,9 +33,15 @@
  * a `tableId` returns success, grows the Table by a row, and writes an EMPTY
  * one: the values are silently discarded. And `values.append` with
  * `INSERT_ROWS` appends past everything on the tab, so on a tab holding two
- * blocks of data it lands in the wrong place. So a Table append uses
- * `values.append` over the Table's own range, and a non-Table append writes at
- * the last data row of the contracted region with `values.update`.
+ * blocks of data it lands in the wrong place.
+ *
+ * So a Table append uses `values.append` over the Table's own range, which is
+ * the only path that both writes the values and extends the Table. A non-Table
+ * append finds the end of the first block itself and writes there through
+ * `values.batchUpdate`, the plain update endpoint in its batched form: it
+ * inserts no rows, so nothing below it moves, and it can carry the tail block
+ * alongside an upsert's matched rows in a single call. A tab holding two
+ * blocks has no single end to append to and is refused rather than guessed at.
  */
 
 import { z } from "zod";
