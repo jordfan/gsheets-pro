@@ -20,6 +20,7 @@ import { isFailure, errorOf, type ToolResponse } from "../../src/lib/result.js";
 import { createBatchTool } from "../../src/tools/batch.js";
 import { createFindTool } from "../../src/tools/find.js";
 import { createStructureTool } from "../../src/tools/structure.js";
+import { paceContext } from "./pacing.js";
 
 const SPREADSHEET_ID = process.env.GSHEETS_PRO_LIVE_SPREADSHEET;
 const live = SPREADSHEET_ID ? describe : describe.skip;
@@ -67,7 +68,7 @@ async function readBack(range: string): Promise<string[][]> {
 live("sheets_structure, sheets_find and sheets_batch, live", () => {
   beforeAll(async () => {
     resetContext();
-    ctx = await getContext();
+    ctx = paceContext(await getContext());
     const deps = { getContext: async () => ctx };
     structure = createStructureTool(deps);
     find = createFindTool(deps);
@@ -143,7 +144,7 @@ live("sheets_structure, sheets_find and sheets_batch, live", () => {
         sort_by: [{ column: "Student" }],
       }),
     );
-    expect((result["check"] as { status: string }).status).toBe("ok");
+    expect((result["check"] as { status: string }).status).toBe("success");
     const rows = await readBack(`'${STRUCT_TAB}'!A1:A5`);
     expect(rows[0]?.[0]).toBe("Student");
     expect(rows.slice(1).map((r) => r[0])).toEqual([
@@ -433,7 +434,7 @@ live("sheets_structure, sheets_find and sheets_batch, live", () => {
       }),
     );
     expect(applied["request_count"]).toBe(2);
-    expect((applied["check"] as { status: string }).status).toBe("ok");
+    expect((applied["check"] as { status: string }).status).toBe("success");
     const rows = await readBack(`'${BATCH_TAB}'!A1:B3`);
     expect(rows[0]).toEqual(["Vendor", "Rate"]);
   });

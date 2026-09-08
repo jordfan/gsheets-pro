@@ -35,7 +35,15 @@ export const ERROR_VALUE_TYPES = [
 
 export type ErrorValueType = (typeof ERROR_VALUE_TYPES)[number];
 
-export type GateStatus = "ok" | "errors_found" | "pending" | "skipped";
+/**
+ * One vocabulary, shared with the lint.
+ *
+ * `references/lint-rules.md` documents `sheets_check` as returning `success`,
+ * `errors_found` or `pending`, and every write's `check` uses the same words,
+ * plus `skipped` for a check that did not run. A model that has read one
+ * knows what the other means without being told twice.
+ */
+export type GateStatus = "success" | "errors_found" | "pending" | "skipped";
 
 export interface GateErrorCell {
   /** "'Roster'!D14", so it can be pasted into the sheet's name box. */
@@ -128,8 +136,8 @@ export function withinGateCap(bounds: NullableBounds, cap = MAX_GATE_CELL_COUNT)
  *
  * `ranges` are fully qualified A1 references ("'Roster'!A1:F80"). An empty list
  * means the caller touched nothing readable, which is `skipped` rather than
- * `ok`: claiming a clean bill of health on a check that never ran is worse than
- * admitting it did not run.
+ * `success`: claiming a clean bill of health on a check that never ran is worse
+ * than admitting it did not run.
  */
 export async function runErrorGate(
   api: GateCapableSheets,
@@ -182,7 +190,7 @@ export async function runErrorGate(
   }
 
   const status: GateStatus =
-    tally.errors > 0 ? "errors_found" : tally.loading > 0 ? "pending" : "ok";
+    tally.errors > 0 ? "errors_found" : tally.loading > 0 ? "pending" : "success";
 
   const check: GateCheck = {
     status,
@@ -281,7 +289,7 @@ export function describeCheck(check: GateCheck): string {
     return check.note ?? "No cell values changed, so there was nothing to check.";
   }
   const scope = check.ranges.length === 1 ? check.ranges[0] : `${check.ranges.length} ranges`;
-  if (check.status === "ok") {
+  if (check.status === "success") {
     return `Check: clean. ${check.total_formulas} formula(s) across ${scope}, no errors.`;
   }
   if (check.status === "pending") {

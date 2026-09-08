@@ -16,29 +16,23 @@
  * workbook-wide and the disposable spreadsheet holds other people's tabs. The
  * theme path is exercised with `dry_run`, which sends nothing, and by the
  * offline suite.
+ *
+ * Quota pacing comes from `paceContext` in `./pacing.ts`, which every live
+ * file uses. Nothing here waits or retries by hand.
  */
-import { beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 
-import { withRetry } from "../../src/lib/batch.js";
 import { getContext, type Context } from "../../src/lib/client.js";
 import { isFailure, errorOf, type ToolResponse } from "../../src/lib/result.js";
 import { createStyleTool } from "../../src/tools/style.js";
 import { createWriteTool } from "../../src/tools/write.js";
+import { paceContext } from "./pacing.js";
 
 const SPREADSHEET = process.env.GSHEETS_PRO_LIVE_SPREADSHEET;
 const WRITE_TAB = "Write Live";
 const STYLE_TAB = "Style Live";
 
 const suite = SPREADSHEET ? describe : describe.skip;
-
-/**
- * Sheets allows sixty reads a minute per user and each case here spends
- * several: three or four inside the tool, one or two more to read the result
- * back. Without a pause the suite crosses that line partway through, and the
- * failures then read as tool bugs rather than as quota, which cost an hour
- * once already. Leave a minute between runs for the same reason.
- */
-const QUOTA_PAUSE_MS = 3_000;
 
 let context: Context;
 let write: (args: Record<string, unknown>) => Promise<ToolResponse>;
@@ -47,44 +41,33 @@ let style: (args: Record<string, unknown>) => Promise<ToolResponse>;
 /**
  * Delete every tab this suite owns, then make them fresh.
  *
- * Every call here backs off on a 429 like the cases do. Setup that does not is
- * worse than a case that does not: a quota blip in `beforeAll` fails the whole
- * file and reports fourteen skipped tests, which reads as though the suite is
- * broken rather than as though Google said wait.
- *
  * The tabs are left behind when the run ends, on purpose: when a case fails,
  * the sheet itself is the evidence, and the next run resets them anyway.
  */
 async function resetTabs(): Promise<void> {
-  const existing = await withRetry(() =>
-    context.sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET!,
-      fields: "sheets.properties(sheetId,title)",
-    }),
-  );
+  const existing = await context.sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET!,
+    fields: "sheets.properties(sheetId,title)",
+  });
   const deletes = (existing.data.sheets ?? [])
     .filter((s) => s.properties?.title === WRITE_TAB || s.properties?.title === STYLE_TAB)
     .map((s) => ({ deleteSheet: { sheetId: s.properties!.sheetId } }));
   if (deletes.length) {
-    await withRetry(() =>
-      context.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SPREADSHEET!,
-        requestBody: { requests: deletes },
-      }),
-    );
+    await context.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET!,
+      requestBody: { requests: deletes },
+    });
   }
 
-  const created = await withRetry(() =>
-    context.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET!,
-      requestBody: {
-        requests: [
-          { addSheet: { properties: { title: WRITE_TAB, gridProperties: { frozenRowCount: 1 } } } },
-          { addSheet: { properties: { title: STYLE_TAB, gridProperties: { frozenRowCount: 1 } } } },
-        ],
-      },
-    }),
-  );
+  const created = await context.sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET!,
+    requestBody: {
+      requests: [
+        { addSheet: { properties: { title: WRITE_TAB, gridProperties: { frozenRowCount: 1 } } } },
+        { addSheet: { properties: { title: STYLE_TAB, gridProperties: { frozenRowCount: 1 } } } },
+      ],
+    },
+  });
   void created;
   context.cache.invalidate(SPREADSHEET!);
 
@@ -96,47 +79,34 @@ async function resetTabs(): Promise<void> {
     ["Bo Tran", "4", "Chess Club", "8", "=D3*55"],
     ["Cy Okafor", "5", "Clay Studio", "6", "=D4*55"],
   ];
-  await withRetry(() =>
-    context.sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: SPREADSHEET!,
-      requestBody: {
-        valueInputOption: "USER_ENTERED",
-        data: [
-          { range: `'${WRITE_TAB}'!A1:E4`, values: seed },
-          { range: `'${STYLE_TAB}'!A1:E4`, values: seed },
-        ],
-      },
-    }),
-  );
+  await context.sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: SPREADSHEET!,
+    requestBody: {
+      valueInputOption: "USER_ENTERED",
+      data: [
+        { range: `'${WRITE_TAB}'!A1:E4`, values: seed },
+        { range: `'${STYLE_TAB}'!A1:E4`, values: seed },
+      ],
+    },
+  });
 }
 
 beforeAll(async () => {
   if (!SPREADSHEET) return;
-  context = await getContext();
+  context = paceContext(await getContext());
   write = createWriteTool({ getContext: async () => context }).handler;
   style = createStyleTool({ getContext: async () => context }).handler;
   await resetTabs();
 }, 120_000);
 
-beforeEach(async () => {
-  if (!SPREADSHEET) return;
-  await new Promise((resolve) => setTimeout(resolve, QUOTA_PAUSE_MS));
-});
-
 const base = () => ({ spreadsheet_id: SPREADSHEET!, sheet: WRITE_TAB });
 
-/**
- * The tools back off on a 429 by themselves; the assertions have to as well,
- * or a quota blip surfaces as a failed expectation with no hint of its cause.
- */
 async function readBack(range: string, render = "FORMATTED_VALUE"): Promise<unknown[][]> {
-  const response = await withRetry(() =>
-    context.sheets.spreadsheets.values.batchGet({
-      spreadsheetId: SPREADSHEET!,
-      ranges: [range],
-      valueRenderOption: render as never,
-    }),
-  );
+  const response = await context.sheets.spreadsheets.values.batchGet({
+    spreadsheetId: SPREADSHEET!,
+    ranges: [range],
+    valueRenderOption: render as never,
+  });
   return (response.data.valueRanges?.[0]?.values ?? []) as unknown[][];
 }
 
@@ -147,7 +117,7 @@ suite("sheets_write, live", () => {
 
     const check = (response.structuredContent as { check: { status: string; total_formulas: number } })
       .check;
-    expect(check.status).toBe("ok");
+    expect(check.status).toBe("success");
 
     const values = await readBack(`'${WRITE_TAB}'!B2:B4`);
     expect(values.map((r) => String(r[0]))).toEqual(["4", "5", "6"]);
@@ -223,7 +193,7 @@ suite("sheets_write, live", () => {
 
     // H2 alone is clean; the gate only reads what this call wrote.
     const clean = (response.structuredContent as { check: { status: string } }).check;
-    expect(clean.status).toBe("ok");
+    expect(clean.status).toBe("success");
 
     const overlapping = await write({ ...base(), range: "G2", values: [["=1/0"]] });
     const check = (overlapping.structuredContent as { check: { status: string; error_summary: Record<string, number> } })

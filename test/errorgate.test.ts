@@ -65,7 +65,7 @@ describe("runErrorGate", () => {
   test("counts formulas and reports a clean sheet", async () => {
     const api = fakeApi({ Roster: [[{ formula: true }, {}], [{ formula: true }, {}]] });
     const check = await runErrorGate(api, "sheet-id", ["'Roster'!A1:B2"]);
-    expect(check.status).toBe("ok");
+    expect(check.status).toBe("success");
     expect(check.total_formulas).toBe(2);
     expect(check.total_errors).toBe(0);
     expect(describeCheck(check)).toContain("clean");
@@ -98,7 +98,7 @@ describe("runErrorGate", () => {
         return () => (t += 100);
       })(),
     });
-    expect(check.status).toBe("ok");
+    expect(check.status).toBe("success");
     expect(api.reads()).toBe(2);
   });
 

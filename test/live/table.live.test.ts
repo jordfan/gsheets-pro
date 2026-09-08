@@ -20,6 +20,7 @@ import { createConditionalFormatTool } from "../../src/tools/conditional_format.
 import { createSettingsTool } from "../../src/tools/settings.js";
 import { createTableTool } from "../../src/tools/table.js";
 import { createValidationTool } from "../../src/tools/validation.js";
+import { paceContext } from "./pacing.js";
 
 const SPREADSHEET_ID = process.env.GSHEETS_PRO_LIVE_SPREADSHEET;
 const suite = SPREADSHEET_ID ? describe : describe.skip;
@@ -49,7 +50,7 @@ const ROWS = [
 
 suite("live: the Phase 3 tools", () => {
   beforeAll(async () => {
-    ctx = await getContext();
+    ctx = paceContext(await getContext());
     const deps = { getContext: async () => ctx };
     tools = {
       table: createTableTool(deps),
@@ -228,7 +229,7 @@ suite("live: the Phase 3 tools", () => {
     const check = (result.structuredContent as Record<string, never>)["check"] as { status: string };
     // The total is a formula over the two named ranges above it. If the names
     // did not take, this reads errors_found rather than ok.
-    expect(check.status).toBe("ok");
+    expect(check.status).toBe("success");
 
     const values = await ctx.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID!,

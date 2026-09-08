@@ -68,7 +68,7 @@ describe("mode range", () => {
     expect(calls.valuesBatchUpdate).toHaveLength(1);
     expect(tabs.get("roster")!.grid[1][1]).toBe("4");
     const structured = response.structuredContent as { check: { status: string } };
-    expect(structured.check.status).toBe("ok");
+    expect(structured.check.status).toBe("success");
   });
 
   test("USER_ENTERED is the default, so a formula stays a formula", async () => {

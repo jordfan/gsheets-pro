@@ -27,13 +27,16 @@ independent: `ERROR`, `NULL_VALUE`, `DIVIDE_BY_ZERO`, `VALUE`, `REF`, `NAME`,
 `NUM`, `N_A`, `LOADING`. Each entry carries a count, up to a hundred locations,
 and how many locations were truncated.
 
-Three statuses:
+Four statuses, and every write's `check` uses the same four:
 
 - **`success`** means no error-severity finding. Warnings may still be present.
 - **`errors_found`** means at least one. This is a stop.
 - **`pending`** means cells were still calculating when the check ran. The tool
   retries with backoff for about five seconds first, so `pending` means they are
   genuinely slow, not that the sheet is clean. Wait and run it again.
+- **`skipped`** means the check did not run: nothing was touched that could be
+  read back, or the call passed `check: false`. It is not a clean bill of
+  health, and the `note` says which of the two it was.
 
 The tool call succeeding is not the sheet being clean. Read `status`.
 
