@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gsheets-pro</title>
+<meta name="description" content="A Claude Code plugin for Google Sheets: thirteen task-shaped tools, native Tables and themes, a lint and render verify loop, and guards so an agent and a colleague can share one spreadsheet.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400..600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23182220'/%3E%3Cg fill='%23F4F5F0'%3E%3Crect x='5' y='7' width='22' height='4'/%3E%3Crect x='5' y='13' width='9' height='3'/%3E%3Crect x='18' y='13' width='9' height='3'/%3E%3Crect x='5' y='18' width='9' height='3'/%3E%3Crect x='18' y='18' width='9' height='3'/%3E%3Crect x='5' y='23' width='9' height='3'/%3E%3Crect x='18' y='23' width='9' height='3'/%3E%3C/g%3E%3C/svg%3E">
+
+<style>
+/* ------------------------------------------------------------------
+   Tokens. The light palette is defined once, on bare :root.
+   Names follow the plugin's own style role tokens where they line up.
+   ------------------------------------------------------------------ */
+:root {
+  --paper:        #f4f5f0;
+  --surface:      #ffffff;
+  --band1:        #ffffff;
+  --band2:        #eaefe6;
+  --rule:         #d2d8cd;
+  --rule-strong:  #b3bcac;
+  --ink:          #16191a;
+  --muted:        #5c645d;
+  --header-fill:  #182220;
+  --header-text:  #f1f3ec;
+  --link:         #1d4e89;
+  --link-hover:   #12395f;
+  --ok:           #2f6b4f;
+  --warn:         #8a6a16;
+  --flag:         #a3311f;
+  --flag-soft:    #f3e2de;
+  --ok-soft:      #e0ece4;
+  --code-bg:      #eceee6;
+
+  --bar-h: 46px;
+  --gutter: 3.5rem;
+  --measure: 66ch;
+  --pad-x: clamp(1.15rem, 4vw, 2.75rem);
+
+  --sans: "Archivo", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --serif: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:       #0f1210;
+    --surface:     #161a15;
+    --band1:       #161a15;
+    --band2:       #1d221b;
+    --rule:        #2b322a;
+    --rule-strong: #3d463b;
+    --ink:         #e6e9e0;
+    --muted:       #98a094;
+    --header-fill: #374236;
+    --header-text: #f1f4ec;
+    --link:        #8ab7ea;
+    --link-hover:  #b3d1f3;
+    --ok:          #74c79a;
+    --warn:        #d8b565;
+    --flag:        #ec8b78;
+    --flag-soft:   #33211d;
+    --ok-soft:     #17281f;
+    --code-bg:     #1b201a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:       #0f1210;
+  --surface:     #161a15;
+  --band1:       #161a15;
+  --band2:       #1d221b;
+  --rule:        #2b322a;
+  --rule-strong: #3d463b;
+  --ink:         #e6e9e0;
+  --muted:       #98a094;
+  --header-fill: #374236;
+  --header-text: #f1f4ec;
+  --link:        #8ab7ea;
+  --link-hover:  #b3d1f3;
+  --ok:          #74c79a;
+  --warn:        #d8b565;
+  --flag:        #ec8b78;
+  --flag-soft:   #33211d;
+  --ok-soft:     #17281f;
+  --code-bg:     #1b201a;
+}
+
+/* ------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--link); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { color: var(--link-hover); }
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+p { margin: 0 0 1.05em; max-width: var(--measure); }
+p:last-child { margin-bottom: 0; }
+
+h1, h2, h3 { font-family: var(--sans); margin: 0; text-wrap: balance; }
+
+h1 {
+  font-variation-settings: "wdth" 118, "wght" 800;
+  font-size: clamp(2.6rem, 7.4vw, 5.4rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.85rem;
+}
+
+h2 {
+  font-variation-settings: "wdth" 113, "wght" 700;
+  font-size: clamp(1.5rem, 3.6vw, 2.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.016em;
+  margin-bottom: 0.9rem;
+  max-width: 22ch;
+}
+
+h3 {
+  font-variation-settings: "wdth" 104, "wght" 650;
+  font-size: 1rem;
+  line-height: 1.3;
+  letter-spacing: 0.005em;
+  margin-bottom: 0.4rem;
+}
+
+code, kbd, samp, pre { font-family: var(--mono); }
+
+/* ------------------------------------------------------------------
+   The formula bar. Name box tracks which row of the page you are on.
+   ------------------------------------------------------------------ */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0 var(--pad-x) 0 0.5rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.namebox {
+  flex: none;
+  width: 4.4rem;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+}
+
+.fx {
+  flex: none;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--muted);
+  padding-right: 0.15rem;
+  border-right: 1px solid var(--rule);
+  padding-left: 0.1rem;
+  line-height: 1;
+}
+
+.bar nav {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 1.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  font-variation-settings: "wdth" 100, "wght" 500;
+}
+.bar nav::-webkit-scrollbar { display: none; }
+.bar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
+.bar nav a:hover { color: var(--ink); text-decoration: underline; }
+
+.themebtn {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-variation-settings: "wdth" 100, "wght" 550;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--rule);
+  padding: 0.28rem 0.6rem;
+  cursor: pointer;
+}
+.themebtn:hover { color: var(--ink); border-color: var(--rule-strong); }
+
+/* Narrow screens keep the first two links and Install, which is the one that matters */
+@media (max-width: 700px) {
+  .bar nav { gap: 0.9rem; }
+  .bar nav a:nth-child(n+3):nth-last-child(n+2) { display: none; }
+}
+
+/* ------------------------------------------------------------------
+   The sheet frame: numbered rows in a left gutter
+   ------------------------------------------------------------------ */
+.row {
+  display: grid;
+  grid-template-columns: var(--gutter) minmax(0, 1fr);
+  border-bottom: 1px solid var(--rule);
+}
+.row:last-of-type { border-bottom: 0; }
+
+.row__n {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-align: right;
+  padding: 3.1rem 0.65rem 0 0;
+  border-right: 1px solid var(--rule);
+  user-select: none;
+}
+
+.row__body {
+  padding: 3rem var(--pad-x) 3.4rem;
+  min-width: 0;
+  max-width: 78rem;
+}
+
+@media (max-width: 760px) {
+  :root { --gutter: 0px; }
+  .row__n { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row__body { padding: 2.3rem var(--pad-x) 2.6rem; }
+}
+
+/* Hero row sits a little taller and carries no number padding offset */
+.row--hero .row__n { padding-top: 2.6rem; }
+.row--hero .row__body { padding-top: 2.6rem; padding-bottom: 3.6rem; }
+
+/* ------------------------------------------------------------------
+   Hero
+   ------------------------------------------------------------------ */
+.deck {
+  font-family: var(--sans);
+  font-variation-settings: "wdth" 102, "wght" 450;
+  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+  max-width: 30ch;
+  margin: 0 0 2rem;
+  color: var(--ink);
+}
+
+.prerelease {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--flag);
+  background: var(--flag-soft);
+  padding: 0.22rem 0.5rem;
+  margin-bottom: 1.4rem;
+}
+
+.hero__grid {
+  display: grid;
+  gap: clamp(1.8rem, 3.6vw, 3rem);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.9rem;
+}
+@media (min-width: 1000px) {
+  .hero__grid { grid-template-columns: minmax(0, 28rem) minmax(0, 1fr); }
+}
+
+/* ------------------------------------------------------------------
+   Commands
+   ------------------------------------------------------------------ */
+.cmds { margin: 0 0 1rem; max-width: 44rem; }
+
+.cmd {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-bottom-width: 0;
+  padding: 0.6rem 0.55rem 0.6rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.cmd:last-child { border-bottom-width: 1px; }
+.cmd__p { color: var(--muted); flex: none; user-select: none; }
+.cmd__t {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  color: var(--ink);
+}
+
+.copy {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-variation-settings: "wdth" 100, "wght" 550;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--rule);
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+}
+.copy:hover { color: var(--ink); border-color: var(--rule-strong); }
+.copy[data-done="1"] { color: var(--ok); border-color: var(--ok); }
+
+.note {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  font-variation-settings: "wdth" 100, "wght" 400;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 52ch;
+  margin: 0.7rem 0 0;
+}
+
+/* ------------------------------------------------------------------
+   The rendered-sheet figure
+   ------------------------------------------------------------------ */
+figure { margin: 0; }
+.render {
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  padding: 0.55rem;
+  overflow-x: auto;
+}
+.render svg { display: block; width: 100%; min-width: 30rem; height: auto; }
+figcaption {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-variation-settings: "wdth" 100, "wght" 400;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 0.6rem;
+  max-width: 54ch;
+}
+
+/* SVG text roles */
+.sv-col   { font-family: var(--mono); font-size: 9px; fill: var(--muted); }
+.sv-title { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.sv-head  { font-family: var(--sans); font-size: 10px; font-weight: 600; fill: var(--header-text); }
+.sv-cell  { font-family: var(--sans); font-size: 10.5px; fill: var(--ink); }
+.sv-num   { font-family: var(--mono); font-size: 10px; fill: var(--ink); }
+.sv-note  { font-family: var(--serif); font-size: 9.5px; font-style: italic; fill: var(--muted); }
+.sv-ok    { fill: var(--ok); }
+.sv-warn  { fill: var(--warn); }
+.sv-flag  { fill: var(--flag); }
+
+/* ------------------------------------------------------------------
+   Tables, styled the way the plugin styles a sheet
+   ------------------------------------------------------------------ */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule-strong); background: var(--surface); }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.84rem;
+  font-variation-settings: "wdth" 100, "wght" 400;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+caption {
+  caption-side: bottom;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--paper);
+  border-top: 1px solid var(--rule-strong);
+  padding: 0.7rem 0.75rem 0.75rem;
+}
+caption > span { display: block; max-width: 74ch; }
+
+thead th {
+  background: var(--header-fill);
+  color: var(--header-text);
+  font-variation-settings: "wdth" 100, "wght" 600;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+  border-right: 1px solid var(--header-fill);
+}
+
+tbody th, tbody td {
+  padding: 0.58rem 0.75rem;
+  border-top: 1px solid var(--rule);
+  vertical-align: top;
+  text-align: left;
+}
+tbody th { font-variation-settings: "wdth" 100, "wght" 600; white-space: nowrap; }
+tbody tr:nth-child(odd)  { background: var(--band1); }
+tbody tr:nth-child(even) { background: var(--band2); }
+
+/* Tool table: a frozen header row, which is exactly what rule six asks for */
+.t-tools thead th { position: sticky; top: var(--bar-h); z-index: 5; }
+.t-tools { table-layout: fixed; }
+.t-tools tbody th { font-family: var(--mono); font-size: 0.78rem; font-weight: 500; color: var(--ink); width: 14.5rem; }
+.t-tools tbody td { font-family: var(--serif); font-size: 0.95rem; line-height: 1.5; }
+@media (max-width: 700px) {
+  .t-tools { table-layout: auto; }
+  .t-tools tbody th { width: auto; }
+}
+
+/* Comparison table: a frozen first column, which is what you want sideways */
+.t-cmp { min-width: 58rem; }
+.t-cmp th[scope="row"] {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  min-width: 15rem;
+  border-right: 1px solid var(--rule-strong);
+}
+.t-cmp tbody tr:nth-child(odd)  th[scope="row"] { background: var(--band1); }
+.t-cmp tbody tr:nth-child(even) th[scope="row"] { background: var(--band2); }
+.t-cmp thead th:first-child { position: sticky; left: 0; z-index: 6; }
+.t-cmp .sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  white-space: normal;
+}
+.t-cmp .mine th[scope="row"] { border-left: 3px solid var(--ok); }
+.yes { color: var(--ok); font-variation-settings: "wdth" 100, "wght" 600; }
+.no  { color: var(--muted); }
+.part { color: var(--warn); font-variation-settings: "wdth" 100, "wght" 600; }
+.n { font-family: var(--mono); font-size: 0.8rem; }
+
+/* ------------------------------------------------------------------
+   The loop: a formula bar you can read
+   ------------------------------------------------------------------ */
+.loopbar {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  margin-bottom: 1.4rem;
+  max-width: 56rem;
+}
+.loopbar__ref {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  padding: 0.72rem 0.75rem 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-right: 1px solid var(--rule);
+  background: var(--code-bg);
+}
+.loopbar__fx {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  padding: 0.6rem 0.6rem 0;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--muted);
+  border-right: 1px solid var(--rule);
+}
+.loopbar__f {
+  flex: 1 1 auto;
+  padding: 0.7rem 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+}
+.loopbar__f b { font-weight: 600; color: var(--link); }
+
+.steps { list-style: none; margin: 0 0 1.4rem; padding: 0; max-width: 56rem; border-top: 1px solid var(--rule); }
+.steps li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 0.62rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--serif);
+  font-size: 0.97rem;
+  line-height: 1.5;
+}
+.steps li:nth-child(even) { background: var(--band2); }
+.steps li:nth-child(odd)  { background: var(--band1); }
+.steps b { font-family: var(--mono); font-size: 0.8rem; font-weight: 500; color: var(--ink); }
+.steps span:first-child {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+  padding-top: 0.2rem;
+}
+
+/* ------------------------------------------------------------------
+   A refusal, printed the way the tool prints it
+   ------------------------------------------------------------------ */
+.refusal {
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--flag);
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  padding: 0.85rem 1rem;
+  margin: 0 0 1rem;
+  max-width: 56rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+.refusal .k { color: var(--muted); }
+.refusal .v { color: var(--ink); }
+.refusal .c { color: var(--flag); }
+
+/* ------------------------------------------------------------------
+   Two-column prose blocks
+   ------------------------------------------------------------------ */
+.cols {
+  display: grid;
+  gap: 1.9rem clamp(1.6rem, 4vw, 3.2rem);
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 62rem;
+}
+@media (min-width: 820px) { .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cols p { font-size: 1rem; }
+.cols > div { border-top: 1px solid var(--rule); padding-top: 0.85rem; }
+
+.lead { max-width: var(--measure); margin-bottom: 1.7rem; }
+
+/* Plain lists */
+.plain { margin: 0 0 1.1rem; padding-left: 1.05rem; max-width: var(--measure); }
+.plain li { margin-bottom: 0.5rem; }
+.plain li::marker { color: var(--rule-strong); }
+
+.rules { list-style: none; margin: 0; padding: 0; max-width: 62rem; }
+.rules li {
+  border-top: 1px solid var(--rule);
+  padding: 0.7rem 0;
+  display: grid;
+  gap: 0.15rem 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 760px) { .rules li { grid-template-columns: 11.5rem minmax(0, 1fr); } }
+.rules code { font-size: 0.78rem; color: var(--ink); }
+.rules p { font-size: 0.97rem; margin: 0; }
+
+/* ------------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------------ */
+footer {
+  border-top: 1px solid var(--rule-strong);
+  padding: 2rem var(--pad-x) 3rem calc(var(--gutter) + var(--pad-x));
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+footer p { max-width: 60ch; margin-bottom: 0.5rem; }
+
+@media (max-width: 760px) {
+  footer { padding-left: var(--pad-x); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .copy, .themebtn, .bar nav a { transition: color 120ms ease, border-color 120ms ease; }
+}
+</style>
+</head>
+
+<body>
+
+<header class="bar">
+  <span class="namebox" id="namebox">A1</span>
+  <span class="fx" aria-hidden="true">fx</span>
+  <nav aria-label="Sections">
+    <a href="#tools">Tools</a>
+    <a href="#verify">Verify</a>
+    <a href="#sharing">Sharing</a>
+    <a href="#compare">Compare</a>
+    <a href="#limits">Limits</a>
+    <a href="#install">Install</a>
+  </nav>
+  <button class="themebtn" id="themebtn" type="button">Dark</button>
+</header>
+
+<main>
+
+<!-- ============================================================ 1 -->
+<section class="row row--hero" id="top" data-ref="A1">
+  <div class="row__n" aria-hidden="true">1</div>
+  <div class="row__body">
+    <p class="prerelease">Pre-release. v0.1 is not out yet.</p>
+    <h1>gsheets-pro</h1>
+    <p class="deck">Google Sheets for Claude Code, built for an agent that can already think.</p>
+
+    <div class="hero__grid">
+      <div>
+        <p>Thirteen tools it can compose, results it can reason over, refusals that name the fix, and a way to look at what it just built. Every write comes back with an error gate read straight from the API. A lint finds what went wrong and hands back the call that repairs it. A render turns a tab into a PNG so Claude can see its own work.</p>
+        <p>Nobody else in this landscape verifies, and nobody else renders.</p>
+
+        <div class="cmds">
+          <div class="cmd">
+            <span class="cmd__p" aria-hidden="true">$</span>
+            <span class="cmd__t">claude plugin marketplace add jordfan/gsheets-pro</span>
+            <button class="copy" type="button" data-copy="claude plugin marketplace add jordfan/gsheets-pro">Copy</button>
+          </div>
+          <div class="cmd">
+            <span class="cmd__p" aria-hidden="true">$</span>
+            <span class="cmd__t">claude plugin install gsheets-pro@gsheets-pro</span>
+            <button class="copy" type="button" data-copy="claude plugin install gsheets-pro@gsheets-pro">Copy</button>
+          </div>
+        </div>
+        <p class="note">On a laptop, add <code>gsheets-pro-local@gsheets-pro</code> for the bundled stdio server. Source and issues live at <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a>. MIT.</p>
+      </div>
+
+      <figure>
+        <div class="render">
+          <svg viewBox="0 0 706 300" role="img" aria-labelledby="rtitle rdesc">
+            <title id="rtitle">A spreadsheet tab produced by gsheets-pro</title>
+            <desc id="rdesc">A roster tab with a merged title banner, a dark frozen header row, banded data rows, right-aligned currency, a status column, and a check column flagging one short term.</desc>
+
+            <rect x="0" y="0" width="706" height="300" fill="var(--surface)"/>
+
+            <!-- column letters -->
+            <g class="sv-col">
+              <text x="96" y="14" text-anchor="middle">A</text>
+              <text x="196" y="14" text-anchor="middle">B</text>
+              <text x="290" y="14" text-anchor="middle">C</text>
+              <text x="397" y="14" text-anchor="middle">D</text>
+              <text x="466" y="14" text-anchor="middle">E</text>
+              <text x="546" y="14" text-anchor="middle">F</text>
+              <text x="647" y="14" text-anchor="middle">G</text>
+            </g>
+            <line x1="0" y1="19" x2="706" y2="19" stroke="var(--rule-strong)" stroke-width="1"/>
+
+            <!-- row numbers -->
+            <g class="sv-col">
+              <text x="19" y="40" text-anchor="end">1</text>
+              <text x="19" y="69" text-anchor="end">2</text>
+              <text x="19" y="92" text-anchor="end">3</text>
+              <text x="19" y="116" text-anchor="end">4</text>
+              <text x="19" y="140" text-anchor="end">5</text>
+              <text x="19" y="164" text-anchor="end">6</text>
+              <text x="19" y="188" text-anchor="end">7</text>
+              <text x="19" y="212" text-anchor="end">8</text>
+              <text x="19" y="236" text-anchor="end">9</text>
+              <text x="19" y="260" text-anchor="end">10</text>
+              <text x="19" y="286" text-anchor="end">11</text>
+            </g>
+            <line x1="25" y1="0" x2="25" y2="300" stroke="var(--rule-strong)" stroke-width="1"/>
+
+            <!-- merged title banner, row 1 -->
+            <text class="sv-title" x="34" y="41">Enrichment Roster, Fall term</text>
+
+            <!-- header row 2 -->
+            <rect x="25" y="50" width="681" height="26" fill="var(--header-fill)"/>
+            <g class="sv-head">
+              <text x="34" y="67">Student</text>
+              <text x="200" y="67" text-anchor="end">Grade</text>
+              <text x="232" y="67">Class</text>
+              <text x="420" y="67" text-anchor="end">Sessions</text>
+              <text x="500" y="67" text-anchor="end">Fee</text>
+              <text x="512" y="67">Status</text>
+              <text x="604" y="67">Check</text>
+            </g>
+
+            <!-- banded data rows -->
+            <rect x="25" y="76"  width="681" height="24" fill="var(--band1)"/>
+            <rect x="25" y="100" width="681" height="24" fill="var(--band2)"/>
+            <rect x="25" y="124" width="681" height="24" fill="var(--band1)"/>
+            <rect x="25" y="148" width="681" height="24" fill="var(--band2)"/>
+            <rect x="25" y="172" width="681" height="24" fill="var(--band1)"/>
+            <rect x="25" y="196" width="681" height="24" fill="var(--band2)"/>
+            <rect x="25" y="220" width="681" height="24" fill="var(--band1)"/>
+            <rect x="25" y="244" width="681" height="24" fill="var(--band2)"/>
+
+            <g class="sv-cell">
+              <text x="34" y="92">Rosalind Okafor</text>
+              <text x="34" y="116">Theo Marchetti</text>
+              <text x="34" y="140">June Ainsley</text>
+              <text x="34" y="164">Mateo Rivas</text>
+              <text x="34" y="188">Priya Chandran</text>
+              <text x="34" y="212">Wren Halloway</text>
+              <text x="34" y="236">Otis Beaumont</text>
+              <text x="34" y="260">Nadia Whitlock</text>
+
+              <text x="232" y="92">Clay Studio</text>
+              <text x="232" y="116">Chess Club</text>
+              <text x="232" y="140">Stagecraft</text>
+              <text x="232" y="164">Clay Studio</text>
+              <text x="232" y="188">Movement</text>
+              <text x="232" y="212">Stagecraft</text>
+              <text x="232" y="236">Chess Club</text>
+              <text x="232" y="260">Movement</text>
+            </g>
+
+            <g class="sv-num">
+              <text x="200" y="92"  text-anchor="end">3</text>
+              <text x="200" y="116" text-anchor="end">1</text>
+              <text x="200" y="140" text-anchor="end">4</text>
+              <text x="200" y="164" text-anchor="end">2</text>
+              <text x="200" y="188" text-anchor="end">K</text>
+              <text x="200" y="212" text-anchor="end">3</text>
+              <text x="200" y="236" text-anchor="end">4</text>
+              <text x="200" y="260" text-anchor="end">1</text>
+
+              <text x="420" y="92"  text-anchor="end">8</text>
+              <text x="420" y="116" text-anchor="end">8</text>
+              <text x="420" y="140" text-anchor="end">6</text>
+              <text x="420" y="164" text-anchor="end">8</text>
+              <text x="420" y="188" text-anchor="end">8</text>
+              <text x="420" y="212" text-anchor="end">6</text>
+              <text x="420" y="236" text-anchor="end">7</text>
+              <text x="420" y="260" text-anchor="end">8</text>
+
+              <text x="500" y="92"  text-anchor="end">$450</text>
+              <text x="500" y="116" text-anchor="end">$450</text>
+              <text x="500" y="140" text-anchor="end">$340</text>
+              <text x="500" y="164" text-anchor="end">$450</text>
+              <text x="500" y="188" text-anchor="end">$450</text>
+              <text x="500" y="212" text-anchor="end">$340</text>
+              <text x="500" y="236" text-anchor="end">$400</text>
+              <text x="500" y="260" text-anchor="end">$450</text>
+            </g>
+
+            <g class="sv-cell">
+              <text x="512" y="92">Confirmed</text>
+              <text x="512" y="116">Confirmed</text>
+              <text x="512" y="140">Waitlist</text>
+              <text x="512" y="164">Confirmed</text>
+              <text x="512" y="188">Confirmed</text>
+              <text x="512" y="212">Waitlist</text>
+              <text x="512" y="236">Confirmed</text>
+              <text x="512" y="260">Confirmed</text>
+              <text class="sv-flag" x="604" y="236">Short term</text>
+            </g>
+
+            <!-- source note, row 11 -->
+            <text class="sv-note" x="34" y="286">Fee = Settings!Rate_per_session * Sessions, rounded to 25.</text>
+
+            <!-- gridlines -->
+            <g stroke="var(--rule)" stroke-width="1">
+              <line x1="25" y1="76"  x2="706" y2="76"/>
+              <line x1="25" y1="100" x2="706" y2="100"/>
+              <line x1="25" y1="124" x2="706" y2="124"/>
+              <line x1="25" y1="148" x2="706" y2="148"/>
+              <line x1="25" y1="172" x2="706" y2="172"/>
+              <line x1="25" y1="196" x2="706" y2="196"/>
+              <line x1="25" y1="220" x2="706" y2="220"/>
+              <line x1="25" y1="244" x2="706" y2="244"/>
+              <line x1="25" y1="268" x2="706" y2="268"/>
+              <line x1="170" y1="50" x2="170" y2="268"/>
+              <line x1="222" y1="50" x2="222" y2="268"/>
+              <line x1="360" y1="50" x2="360" y2="268"/>
+              <line x1="428" y1="50" x2="428" y2="268"/>
+              <line x1="508" y1="50" x2="508" y2="268"/>
+              <line x1="596" y1="50" x2="596" y2="268"/>
+            </g>
+            <rect x="25" y="19" width="681" height="249" fill="none" stroke="var(--rule-strong)" stroke-width="1"/>
+          </svg>
+        </div>
+        <figcaption>A tab of the kind the tools build, drawn here with invented data. The status column is plain text on purpose: a render never draws a dropdown as a pill, so the lint is what tells you the rule is still there.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section class="row" id="tools" data-ref="A2">
+  <div class="row__n" aria-hidden="true">2</div>
+  <div class="row__body">
+    <h2>Thirteen tools, shaped like tasks</h2>
+    <div class="lead">
+      <p>A capable agent does not need a hundred verbs. It needs a small surface it can compose, results rich enough to reason over, and errors that teach the fix rather than just failing.</p>
+      <p>So everything here takes sheet names and A1 ranges, and the server resolves the ids and grid ranges. Every response is prose the model reads plus structured data it can branch on. Every error carries a code, a message, and a hint. Every call sends exactly one batch update, backs off on a rate limit, and builds its field mask from the arguments you actually passed.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table class="t-tools">
+        <thead>
+          <tr><th scope="col">Tool</th><th scope="col">What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">sheets_open</th><td>First call of every session. Tabs, native Tables, named ranges, protections, the detected preset, and the contract saying which columns are yours to write.</td></tr>
+          <tr><th scope="row">sheets_read</th><td>Values, formulas, or both, with formats, notes, and validation. Paginated, and every record carries its own row number.</td></tr>
+          <tr><th scope="row">sheets_write</th><td>The only value mutation: range, append, upsert, fill, log. Refuses to replace a cell that currently holds a formula.</td></tr>
+          <tr><th scope="row">sheets_table</th><td>Create, adopt, update, or delete a native Table: typed columns, dropdowns, header notes, help text, banding, frozen header.</td></tr>
+          <tr><th scope="row">sheets_settings</th><td>An inputs block where every number gets a named range and a note citing where it came from.</td></tr>
+          <tr><th scope="row">sheets_style</th><td>One style object on one range, or a preset compiled into the spreadsheet's own theme so Format &gt; Theme stays the human's knob.</td></tr>
+          <tr><th scope="row">sheets_validation</th><td>Dropdowns, checkboxes, dates, numbers, text, and custom rules, each with help text that says what a valid entry looks like.</td></tr>
+          <tr><th scope="row">sheets_conditional_format</th><td>Boolean and gradient rules, addressed by fingerprint rather than by index, so a rule someone reordered is still findable.</td></tr>
+          <tr><th scope="row">sheets_structure</th><td>Tabs, rows, columns, sorting, find and replace, grouping, protection. Destructive actions need a confirmation naming the sheet.</td></tr>
+          <tr><th scope="row">sheets_find</th><td>The Drive side: search, share, and copy spreadsheets. Says which scope it needs instead of failing opaquely.</td></tr>
+          <tr><th scope="row">sheets_check</th><td>The lint. Seven rules in v1, each finding carrying a severity and a fix string naming the call that resolves it.</td></tr>
+          <tr><th scope="row">sheets_render</th><td>One tab or range to a PNG: a file path on your machine, or a short-lived signed URL when the server is hosted.</td></tr>
+          <tr><th scope="row">sheets_batch</th><td>The escape hatch to all 69 batch update request types, with sheet names and A1 ranges resolved for you first.</td></tr>
+        </tbody>
+        <caption><span>A fourteenth tool, a declarative one-call workbook builder, is v1.1. Today a tracker takes four calls.</span></caption>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section class="row" id="verify" data-ref="A3">
+  <div class="row__n" aria-hidden="true">3</div>
+  <div class="row__body">
+    <h2>An agent that can see its own work</h2>
+    <div class="lead">
+      <p>This is the part nobody else ships. Every write ends with a masked read over exactly the cells it touched and returns a check keyed on the Sheets error types, so a broken reference is caught by the call that caused it rather than by a person a week later. Because it reads the API's own error enum, it does not care what language the spreadsheet is in.</p>
+    </div>
+
+    <div class="loopbar">
+      <span class="loopbar__ref">A1</span>
+      <span class="loopbar__fx" aria-hidden="true">fx</span>
+      <code class="loopbar__f">=LET(
+  sheet,  <b>sheets_open</b>(url),
+  built,  <b>sheets_table</b>(<b>sheets_style</b>(sheet, preset)),
+  filled, <b>sheets_write</b>(built, mode: "fill"),
+  <b>sheets_check</b>(filled)
+)</code>
+    </div>
+
+    <ol class="steps">
+      <li><span>1</span><span><b>sheets_open</b> first, always. Never write to a spreadsheet you have not opened this session.</span></li>
+      <li><span>2</span><span>Plan before you call. A plan you can state in three sentences produces a sheet someone can read.</span></li>
+      <li><span>3</span><span>Build in order: theme, settings, Table, then the formula columns by fill.</span></li>
+      <li><span>4</span><span>Read the check on every write. Errors found means stop and fix, not continue and hope.</span></li>
+      <li><span>5</span><span><b>sheets_check</b> before calling it done. Clear every error. Justify any warning you leave.</span></li>
+      <li><span>6</span><span><b>sheets_render</b> once, then look at it. One fix pass, not an open-ended polish loop.</span></li>
+    </ol>
+
+    <div class="cols">
+      <div>
+        <h3>The lint</h3>
+        <p>Seven rules in v1: a formula error, a merge inside a data region, a missing frozen header, a write that landed in somebody else's column, a key column gone blank or duplicated, the sheet's own check column raising a flag, and text that does not read as a colleague's work. Each finding carries the call that fixes it.</p>
+      </div>
+      <div>
+        <h3>The render</h3>
+        <p>A tab becomes a PNG the model actually looks at. Fills, fonts, borders, banding, merges, column widths and conditional formats all paint correctly, and a frozen header repeats on every page. Truncated columns and unreadable contrast are things you can only catch by looking.</p>
+      </div>
+      <div>
+        <h3>What the lint cannot tell you</h3>
+        <p>A clean lint proves your formulas evaluate. It does not prove they are right. An off-by-one range gives you a green check and wrong numbers all the way down. The skill says so in the same paragraph where it tells Claude to run the lint.</p>
+      </div>
+      <div>
+        <h3>A house style it absorbs once</h3>
+        <p>A skill carries ten rules with the reasoning behind each, and a hook injects a short card of it on the first Sheets call of a session. The model learns the conventions once rather than being told them in every prompt.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section class="row" id="craft" data-ref="A4">
+  <div class="row__n" aria-hidden="true">4</div>
+  <div class="row__body">
+    <h2>Sheets a person would recognize as their own</h2>
+    <div class="lead">
+      <p>Formatting is not decoration here. Each of these is the thing that keeps a spreadsheet correct three months after it was built, which is why they are tools rather than advice.</p>
+    </div>
+    <ul class="rules">
+      <li>
+        <code>native Tables</code>
+        <p>Tabular data is a real Table, not a hand-formatted range. Typed columns, dropdowns, banding and filters come with it, and structured references survive a colleague inserting a row above your formula.</p>
+      </li>
+      <li>
+        <code>themes</code>
+        <p>A preset compiles to the spreadsheet's own nine-slot theme, so a color written as a theme slot re-skins when someone changes Format &gt; Theme. Three presets ship. The loader rejects a palette that fails 4.5:1 contrast.</p>
+      </li>
+      <li>
+        <code>settings block</code>
+        <p>Every input gets its own cell, a named range, and a note saying where the number came from. A rate typed inside a formula is invisible the day it changes.</p>
+      </li>
+      <li>
+        <code>documentation</code>
+        <p>A note on each header cell says what the column means and its units. Validation help text says what a valid entry looks like. Both are written to read as if a colleague left them for another colleague.</p>
+      </li>
+      <li>
+        <code>formulas</code>
+        <p>They pass through byte for byte, always. The house style prefers a helper column to a formula nobody can read, XLOOKUP with its missing value argument, IFNA over a blanket IFERROR, and no numeric literal that could ever change.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ 5 -->
+<section class="row" id="sharing" data-ref="A5">
+  <div class="row__n" aria-hidden="true">5</div>
+  <div class="row__body">
+    <h2>Sharing a spreadsheet with people who never saw your prompt</h2>
+    <div class="lead">
+      <p>This is the case that goes wrong quietly. A registry file in your repository names the spreadsheets other people depend on, by id, with no metadata needed anywhere: who owns them, which columns are writable, whether other formulas point at row numbers. Every session on every machine reads it and behaves accordingly.</p>
+    </div>
+
+    <div class="refusal"><span class="k">code</span>    <span class="c">"formula_cell"</span>
+<span class="k">message</span> <span class="v">"D14 currently holds a formula. Writing here would replace it."</span>
+<span class="k">hint</span>    <span class="v">"Read the cell, decide whether you meant to, then pass force."</span></div>
+
+    <div class="cols">
+      <div>
+        <h3>Formulas are never overwritten</h3>
+        <p>Every write pre-reads the range it is about to touch and refuses if a cell holds a formula, with or without a contract. Getting past it takes an explicit force, which is a decision somebody made rather than an accident.</p>
+      </div>
+      <div>
+        <h3>A dropdown a person built is left alone</h3>
+        <p>Rewriting a validation rule wipes the chip colors somebody set by hand, even when the new condition is byte-identical. That was measured, not assumed, and the colors cannot be restored because the API never exposed them. Rules the plugin did not create are reported as owned by the interface and refused.</p>
+      </div>
+      <div>
+        <h3>Destructive changes ask, or refuse</h3>
+        <p>Deleting a tab or reordering rows needs a confirmation string naming the sheet. On a spreadsheet marked as having positional rows, those are refused outright, because other people's formulas point at row numbers.</p>
+      </div>
+      <div>
+        <h3>Nobody is watching, so it says no</h3>
+        <p>A guard hook asks on a laptop and denies in an unattended run, because an unanswered prompt in a scheduled task just stalls. The denial arrives as the tool's error text with the reason, so the model reads it and reports what it did not do.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section class="row" id="cloud" data-ref="A6">
+  <div class="row__n" aria-hidden="true">6</div>
+  <div class="row__body">
+    <h2>It runs where Claude Code runs</h2>
+    <div class="cols">
+      <div>
+        <h3>One server, two transports</h3>
+        <p>The same TypeScript server runs as a stdio process on your laptop and as a stateless HTTP service for cloud sessions and shared hosting. A Dockerfile and a hosting guide come with it, and the tool names key on their suffix, so the same skill and the same hooks work whichever prefix your session hands them.</p>
+      </div>
+      <div>
+        <h3>A vendor command for cloud repositories</h3>
+        <p>A plugin declared in a repository's settings does not install in a cloud run. That was measured, so there is a command that copies the skill, hooks and presets straight into a repository's own configuration directory, where they do load. Commit the result and a scheduled run picks it up.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section class="row" id="evidence" data-ref="A7">
+  <div class="row__n" aria-hidden="true">7</div>
+  <div class="row__body">
+    <h2>Decided by measurement, not by reading the docs</h2>
+    <div class="lead">
+      <p>Six spikes ran against the live API before the design was fixed. Two of them found behavior that silently destroys data, which a naive implementation ships without ever noticing.</p>
+    </div>
+    <ul class="plain">
+      <li><strong>A Table append that writes an empty row.</strong> Appending cells by table id returns success and discards the values you passed. The tool uses the ordinary append against the Table's range instead.</li>
+      <li><strong>A footer color that eats a row of data.</strong> Setting a Table's footer color reads like a cosmetic setting. It converts the last data row into a footer and overwrites those cells with sum formulas, silently. Presets never send that field.</li>
+      <li><strong>Two assumptions turned out better than planned.</strong> The contract metadata survives Make a copy intact, and the render redirect needs no bearer re-attachment, which removed hand-rolled redirect handling from the design.</li>
+    </ul>
+    <p>801 offline tests run in about a second and need no credentials. A separate live suite runs against a disposable spreadsheet and skips itself when there is not one.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section class="row" id="compare" data-ref="A8">
+  <div class="row__n" aria-hidden="true">8</div>
+  <div class="row__body">
+    <h2>Compared with what else is out there</h2>
+    <div class="lead">
+      <p>The Sheets tooling landscape is good at values and rows. It is nearly empty on formatting, and completely empty on verification. Two of these are worth your attention for reasons this project does not cover: the Workspace server below has the best authentication story in the ecosystem and was the closest thing to formatting before this, and Google's own server needs no setup at all.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table class="t-cmp">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Tools</th>
+            <th scope="col">Formatting</th>
+            <th scope="col">Native Tables</th>
+            <th scope="col">Lint and render</th>
+            <th scope="col">Human guards</th>
+            <th scope="col">Other Workspace apps</th>
+            <th scope="col">Setup</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="mine">
+            <th scope="row">gsheets-pro<span class="sub">TypeScript, stdio and HTTP, MIT</span></th>
+            <td class="n">13</td>
+            <td class="yes">Yes, with themes and presets</td>
+            <td class="yes">Create, adopt, typed columns</td>
+            <td class="yes">Both</td>
+            <td class="yes">Registry, formula guard, interface-owned rules</td>
+            <td class="no">None. Sheets only</td>
+            <td class="no">Your own OAuth client, about 25 minutes</td>
+          </tr>
+          <tr>
+            <th scope="row">taylorwilsdon/google_workspace_mcp<span class="sub">120+ tools across 12 services</span></th>
+            <td class="n">~14 for Sheets</td>
+            <td class="yes">Yes, including conditional</td>
+            <td class="part">List and append only</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="yes">12 services</td>
+            <td class="yes">Best in the ecosystem</td>
+          </tr>
+          <tr>
+            <th scope="row">xing5/mcp-google-sheets<span class="sub">Python, stdio, ~1,000 stars</span></th>
+            <td class="n">19</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">None</td>
+            <td class="no">Your own credentials</td>
+          </tr>
+          <tr>
+            <th scope="row">Anthropic's Google Sheets connector<span class="sub">First party</span></th>
+            <td class="n">~20</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="part">Separate connectors</td>
+            <td class="yes">Managed, sign in</td>
+          </tr>
+          <tr>
+            <th scope="row">Google's Sheets MCP server<span class="sub">Developer preview, hosted</span></th>
+            <td class="n">6</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">None</td>
+            <td class="yes">Hosted, OAuth only</td>
+          </tr>
+          <tr>
+            <th scope="row">Composio, Zapier, Pipedream<span class="sub">Hosted action catalogs</span></th>
+            <td class="n">Catalog</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="yes">Hundreds of apps</td>
+            <td class="yes">Vendor auth broker</td>
+          </tr>
+        </tbody>
+        <caption><span>As of September 2026. Counts are what each project's own documentation states. The hosted catalogs work on a row-level create, read, update and delete model behind a vendor's auth broker, which is a good fit for automations and a poor one for building a spreadsheet a person will maintain.</span></caption>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section class="row" id="limits" data-ref="A9">
+  <div class="row__n" aria-hidden="true">9</div>
+  <div class="row__body">
+    <h2>What it cannot do</h2>
+    <div class="lead">
+      <p>Most of these are limits of the Sheets API rather than gaps in this project's coverage of it, and no amount of future work closes them. They are here because you should know them before you install, not after.</p>
+    </div>
+    <ul class="plain">
+      <li><strong>Named functions and Apps Script are unreachable.</strong> Neither has an API. Use a LET inside the formula, or a helper column.</li>
+      <li><strong>Dropdown chip colors cannot be set or read,</strong> in either direction. The colored pill in the interface is invisible to every API call.</li>
+      <li><strong>A render never shows a dropdown as a pill.</strong> An intact rule created through the API looks pixel for pixel identical to a cell with no rule at all, so the lint is the authority on validation, not the picture.</li>
+      <li><strong>Threaded comments are out of reach.</strong> They live in a different API, so a question a colleague left in one is not something the plugin can see. It writes cell notes instead.</li>
+      <li><strong>The export endpoint a render uses is undocumented.</strong> It is fenced behind a dedicated tool for exactly that reason, and rendering needs poppler installed on whichever machine runs the server.</li>
+      <li><strong>Setup takes your own Google Cloud OAuth client,</strong> about twenty-five minutes the first time. You have to click Publish during setup, or the refresh token expires after seven days and the whole thing quietly stops working.</li>
+      <li><strong>Charts, pivot tables, slicers and filter views go through the raw escape hatch,</strong> which reaches them but applies no preset awareness. A chart built that way looks like the Sheets default.</li>
+      <li><strong>The one-call workbook builder and the formula pretty-printer are v1.1.</strong> Today a tracker is four calls, and formulas pass through exactly as written.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section class="row" id="install" data-ref="A10">
+  <div class="row__n" aria-hidden="true">10</div>
+  <div class="row__body">
+    <h2>Install it</h2>
+    <div class="lead">
+      <p>Two lines in Claude Code. The first plugin brings the house style, the verify loop conventions, the presets and the guards. On a laptop, add the second for the bundled server that runs over stdio; for a cloud session or a team, run the same server over HTTP and point a connector at it.</p>
+    </div>
+
+    <div class="cmds">
+      <div class="cmd">
+        <span class="cmd__p" aria-hidden="true">$</span>
+        <span class="cmd__t">claude plugin marketplace add jordfan/gsheets-pro</span>
+        <button class="copy" type="button" data-copy="claude plugin marketplace add jordfan/gsheets-pro">Copy</button>
+      </div>
+      <div class="cmd">
+        <span class="cmd__p" aria-hidden="true">$</span>
+        <span class="cmd__t">claude plugin install gsheets-pro@gsheets-pro</span>
+        <button class="copy" type="button" data-copy="claude plugin install gsheets-pro@gsheets-pro">Copy</button>
+      </div>
+      <div class="cmd">
+        <span class="cmd__p" aria-hidden="true">$</span>
+        <span class="cmd__t">claude plugin install gsheets-pro-local@gsheets-pro</span>
+        <button class="copy" type="button" data-copy="claude plugin install gsheets-pro-local@gsheets-pro">Copy</button>
+      </div>
+    </div>
+
+    <p class="note">This is pre-release and under active development, so it is not installable yet. Watch <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a> for v0.1. A setup command and a doctor command check your token, your scopes, how long your consent screen has been sitting in testing, and whether poppler is installed.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>MIT licensed. <a href="https://github.com/jordfan/gsheets-pro">github.com/jordfan/gsheets-pro</a></p>
+  <p>Not affiliated with the GSheetsPro coaching-systems product. Google Sheets is a trademark of Google LLC.</p>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('themebtn');
+
+  function currentIsDark() {
+    var set = root.getAttribute('data-theme');
+    if (set) return set === 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function label() {
+    btn.textContent = currentIsDark() ? 'Light' : 'Dark';
+    btn.setAttribute('aria-label', currentIsDark() ? 'Switch to the light theme' : 'Switch to the dark theme');
+  }
+
+  try {
+    var saved = localStorage.getItem('gsp-theme');
+    if (saved === 'dark' || saved === 'light') root.setAttribute('data-theme', saved);
+  } catch (e) {}
+
+  label();
+
+  btn.addEventListener('click', function () {
+    var next = currentIsDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('gsp-theme', next); } catch (e) {}
+    label();
+  });
+
+  // Copy buttons
+  Array.prototype.forEach.call(document.querySelectorAll('.copy'), function (b) {
+    b.addEventListener('click', function () {
+      var text = b.getAttribute('data-copy');
+      var done = function () {
+        b.textContent = 'Copied';
+        b.setAttribute('data-done', '1');
+        setTimeout(function () {
+          b.textContent = 'Copy';
+          b.removeAttribute('data-done');
+        }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      }
+    });
+  });
+
+  // The name box reports which row of the page you are looking at.
+  var box = document.getElementById('namebox');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section[data-ref]'));
+  if (box && sections.length && 'IntersectionObserver' in window) {
+    var visible = Object.create(null);
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        visible[en.target.id] = en.isIntersecting;
+      });
+      for (var i = 0; i < sections.length; i++) {
+        if (visible[sections[i].id]) {
+          box.textContent = sections[i].getAttribute('data-ref');
+          return;
+        }
+      }
+    }, { rootMargin: '-46px 0px -70% 0px', threshold: 0 });
+    sections.forEach(function (s) { io.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>

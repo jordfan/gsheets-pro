@@ -2,6 +2,8 @@
 
 **Pre-release. Under active development; not yet installable. Watch the repo for v0.1.**
 
+The case for it, against the alternatives: https://jordfan.github.io/gsheets-pro/
+
 A Claude Code plugin that makes Google Sheets the way a brilliant, organized
 human would: readable formulas, on-brand formatting, native Tables, and sheets
 that agents and colleagues can maintain side by side.
