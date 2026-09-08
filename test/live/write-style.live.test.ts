@@ -134,7 +134,7 @@ suite("sheets_write, live", () => {
 
     const check = (response.structuredContent as { check: { status: string; total_formulas: number } })
       .check;
-    expect(check.status).toBe("success");
+    expect(check.status).toBe("ok");
 
     const values = await readBack(`'${WRITE_TAB}'!B2:B4`);
     expect(values.map((r) => String(r[0]))).toEqual(["4", "5", "6"]);
@@ -210,10 +210,10 @@ suite("sheets_write, live", () => {
 
     // H2 alone is clean; the gate only reads what this call wrote.
     const clean = (response.structuredContent as { check: { status: string } }).check;
-    expect(clean.status).toBe("success");
+    expect(clean.status).toBe("ok");
 
     const overlapping = await write({ ...base(), range: "G2", values: [["=1/0"]] });
-    const check = (overlapping.structuredContent as { check: { status: string; error_summary: Record<string, unknown> } })
+    const check = (overlapping.structuredContent as { check: { status: string; error_summary: Record<string, number> } })
       .check;
     expect(check.status).toBe("errors_found");
     expect(Object.keys(check.error_summary)).toContain("DIVIDE_BY_ZERO");
