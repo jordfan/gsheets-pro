@@ -13,6 +13,12 @@
  *
  * The tabs are named with a timestamp so two runs never collide, and deleted at
  * the end. Every name in them is invented.
+ *
+ * The context comes through `paceContext`, as every live file's must. These two
+ * tools are read-heavy in a way the others are not: one check spends a values
+ * read plus a grid read per call and retries the grid read while anything is
+ * still calculating, so a file that opted out of the shared bucket would spend
+ * the budget the other suites are counting on.
  */
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import fs from "node:fs";
@@ -24,6 +30,7 @@ import { resetRenderMode } from "../../src/lib/rendermode.js";
 import { clearWrites, recordWrite } from "../../src/lib/writelog.js";
 import { createCheckTool } from "../../src/tools/check.js";
 import { createRenderTool } from "../../src/tools/render.js";
+import { paceContext } from "./pacing.js";
 
 const SPREADSHEET_ID = process.env.GSHEETS_PRO_LIVE_SPREADSHEET;
 const live = SPREADSHEET_ID ? describe : describe.skip;
@@ -66,7 +73,7 @@ live("sheets_check and sheets_render, live", () => {
     resetContext();
     resetRenderMode();
     clearWrites();
-    ctx = await getContext();
+    ctx = paceContext(await getContext());
     const deps = { getContext: async () => ctx };
     check = createCheckTool(deps);
     render = createRenderTool(deps);

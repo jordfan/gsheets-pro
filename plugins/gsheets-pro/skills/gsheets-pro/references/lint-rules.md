@@ -27,18 +27,21 @@ independent: `ERROR`, `NULL_VALUE`, `DIVIDE_BY_ZERO`, `VALUE`, `REF`, `NAME`,
 `NUM`, `N_A`, `LOADING`. Each entry carries a count, up to a hundred locations,
 and how many locations were truncated.
 
-The `check` a write returns is the same four fields with a smaller summary: it
+The `check` a write returns carries the same fields with a smaller summary: it
 counts by error type and names the offending cells in its own `cells` list,
 because it covers the range one call touched rather than a whole spreadsheet.
-Read `status` in both.
 
-Three statuses:
+The statuses, shared by the lint and by every write's `check`:
 
 - **`success`** means no error-severity finding. Warnings may still be present.
 - **`errors_found`** means at least one. This is a stop.
 - **`pending`** means cells were still calculating when the check ran. The tool
   retries with backoff for about five seconds first, so `pending` means they are
   genuinely slow, not that the sheet is clean. Wait and run it again.
+- **`skipped`** means the check did not run: nothing was touched that could be
+  read back, or the call passed `check: false`. It is not a clean bill of
+  health, and the `note` says which of the two it was. Only a write reports it.
+  `sheets_check` always reads, so it never returns `skipped`.
 
 The tool call succeeding is not the sheet being clean. Read `status`.
 
