@@ -109,8 +109,41 @@ matter regardless of which one you pick:
 - Point the proxy's own health check at `GET /health`. It answers before the
   bearer check runs, so a load balancer can probe it without a token, and it
   never touches Google.
+- Forward `GET` to `/renders/` and do **not** put proxy-level authentication in
+  front of it. That path serves rendered PNGs, and whatever fetches one sends a
+  plain GET with no header to attach a bearer to, so the URL carries its own
+  signature instead. Blanket basic auth on the proxy breaks every render.
 - The server is stateless: no sticky sessions, no in-memory state tied to a
-  connection. A proxy is free to round-robin across replicas.
+  connection. A proxy is free to round-robin across replicas, including for
+  render URLs, because the signing secret defaults to `GSHEETS_PRO_TOKEN` and
+  every replica has the same one.
+
+## Renders
+
+`sheets_render` writes a PNG to disk and returns a signed URL rather than image
+bytes. Three settings decide whether that URL is usable.
+
+- **`GSHEETS_PRO_PUBLIC_URL`**, the origin the server is reachable at, for
+  example `https://sheets.example.com`. Without it the tool has no way to know
+  its own address and returns a path rather than a full URL, with a warning
+  saying so. Set it.
+- **`GSHEETS_PRO_RENDER_SECRET`**, optional. URLs are signed with this, falling
+  back to `GSHEETS_PRO_TOKEN`, so replicas already agree without it. Set it only
+  if you want render URLs to survive rotating the bearer.
+- **`GSHEETS_PRO_RENDER_DIR`**, optional, where the PNGs are written. It
+  defaults to a directory under the system temp dir, which is right for a
+  disposable container. Point it at a mounted volume only if you want renders to
+  outlive a restart, and prune it yourself if you do: nothing deletes old
+  renders, and a long-lived container accumulates them.
+
+A URL is good for five minutes and then answers 404 like any other bad
+signature. That is deliberate: a render URL in a transcript is worthless by the
+time anybody reads the transcript. It also means whoever asked for the render
+has to fetch it in the same turn, which the tool's own response says.
+
+Rendering needs `pdftoppm`; the image installs `poppler-utils` for it. On a host
+without it every other tool works and `sheets_render` returns an error naming
+the package. `gsheets-pro doctor` reports which case you are in.
 
 ## Reaching it from a Claude Code cloud session
 
