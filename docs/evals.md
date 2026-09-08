@@ -136,25 +136,21 @@ It is also an argument for a line in `references/formulas.md`: a `DROPDOWN`
 column whose options look numeric holds numbers, so compare with `$E2 & ""` or
 with unquoted numbers, never with quoted digits.
 
-**2. `muted` is a text colour being used as a status fill, and it is
+**2. `muted` was a text colour being used as a status fill, and it was
 unreadable.** `status_fill_rules: true` paints every option of the status
-column, and any option not named in `status_colors` falls back to the `muted`
+column, and any option not named in `status_colors` fell back to the `muted`
 role. In park that is `#6B7770`, a mid-dark grey-green. `ok`, `warn` and `flag`
-are pale tints authored as fills (`#DDF3E6`, `#FFF1CC`, `#F3E1DC`); `muted` is
-not, and the skill's own role table describes it as "secondary text, footnotes,
-source lines". Three status rows in the first render were dark-on-dark and
+are pale tints authored as fills (`#DDF3E6`, `#FFF1CC`, `#F3E1DC`); `muted` was
+not, and the skill's role table describes it as "secondary text, footnotes,
+source lines". Three status rows in the first render were dark on dark and
 genuinely hard to read.
 
-Two ways to fix it, and the plugin should pick one:
-
-- give every preset a separate pale fill for `muted`, keeping `#6B7770` for
-  text; or
-- drop `muted` from `STATUS_ROLES` and make an unmapped option get no fill at
-  all, which is also the better default: painting six states six colours is
-  worse than painting the two that matter.
-
-Until then the demo sets `status_fill_rules: false` and carries status in words,
-with one conditional rule on the Check column.
+Fixed. Every preset now carries a `muted_fill` beside `muted` (park's is
+`#EFF1EF`), the two are separate roles, and `presets/schema.json` says in as many
+words that `muted` is text and must never be used as a fill. The demo maps
+confirmed to `ok` and waiting to `warn`, and lets the other four states take the
+neutral fill: the point of a status colour is to make the two states people scan
+for stand out, not to give six states six colours nobody can hold in their head.
 
 **3. `sheets_render` reports its files under `pages`, and nothing said so.**
 Fixed. A caller reading for another key gets a successful render and no file,
@@ -180,36 +176,46 @@ prose a fixed width and `wrap`.** Autofitting a column of sentences makes it
 wider than the page; hand-sizing a column of values is guesswork that goes stale
 the first time somebody adds a longer name.
 
-**5. `sheets_table create` promises to write the header text and does not.**
-`columns[].name` is described in the schema as "The header text, which is also
-the Table column's name". It becomes `columnName` in the Table's column
-properties, and `headerNoteRequests` puts a note on the header cell, but nothing
-writes the name into the cell itself. `createTable` reads the header row through
-`headerRowFrom` and takes whatever is there as given.
+**5. The export brands native Table headers with a column index, and the sheet
+itself is clean.** Every header in the render came out as `Student [1]`,
+`Guardian email [2]`, through `Check [10]`, and every header also carried a
+column-type icon.
 
-The consequence is not cosmetic. A Table column whose header cell is empty when
-`addTable` runs gets a display name Sheets generates for it, and the export then
-renders the whole header row in a bracketed form: `Student [1]`,
-`Guardian email [2]`, through `Check [10]`. The golden build seeded only the six
-columns a person fills in and left `sheets_table` to name the four computed ones,
-so every header in the first four renders carried an index.
+The sheet does not contain any of that. Read back from the live spreadsheet, the
+header cells hold exactly `Student`, `Guardian email`, `Instrument`, `Teacher`,
+`Length`, `Status`, `Lessons`, `Term fee`, `Lesson override`, `Check`, and the
+Table's own `columnProperties` hold the same ten names. The brackets and the
+icons are added by Google's PDF export when it paints a native Table's header
+row. Nothing in `src/tools/table.ts` or in the demo produces them.
 
-Spike 3 is the control. It passes the same kind of `columnName` values through a
-raw `addTable`, but it writes all five header cells first, and
-`spikes/out/spike3-tables-1.png` shows clean headers carrying the same Table
-type icons. So the bracket is not something the export adds to Tables. It is what
-Sheets shows for a column that has no header cell of its own.
+**This is conditional, and the condition is not isolated.**
+`spikes/out/spike3-tables-1.png` is a render of a native Table with typed
+columns, created by a raw `addTable` in spike 3, and its headers are clean. It
+also shows a type icon on the dropdown column only, where the golden render
+shows one on all ten. So the export applies full Table header chrome to one and
+not the other, and the difference is something other than "is it a Table".
+Untested candidates, in the order worth trying: the header notes the plugin
+writes, the warning-only header protection, the frozen header, and the preset
+repaint of the header row. Settling it is four renders varying one flag at a
+time, and it is worth doing before anyone relies on a render of a Table for
+anything but their own eyes.
 
-Two changes follow, and only the first is mine:
+What follows:
 
-- The demo now writes all ten headers before creating the Table. Fixed.
-- `src/tools/table.ts` should either write `columns[].name` into the header cell
-  on `create`, which is what the schema says it does, or say plainly that the
-  caller writes the header row first and refuse a `create` whose range has a
-  blank header cell. Writing it is the better fix: the tool already holds the
-  name, the range and the header row, and a Table column with no header cell is
-  not a state any caller wants. `adopt` should keep reading the row as it does
-  now, because adopting is explicitly not repainting.
+- Nothing to fix in the tool or the script. An earlier revision of this
+  document blamed a blank header cell and it was wrong: the four columns the
+  demo did not seed had header text by render time and the branding happened
+  anyway.
+- The demo writes all ten headers before creating the Table regardless. Naming a
+  column and then relying on something else to write that name into the cell is
+  fragile whether or not it caused this.
+- The render caveat in the skill should say it. The skill already tells the
+  model that a render is truthful about formatting with dropdowns as the one
+  exception. Table headers are a second exception: what the picture shows is not
+  what a colleague opening the spreadsheet sees. A screenshot of the browser is
+  the honest artefact for a Table-based sheet, and `sheets_render` stays the
+  agent-facing tool.
+
 
 One thing worked exactly as designed and is worth recording. The render is
 truthful about API-created dropdowns being invisible, so the picture gave no

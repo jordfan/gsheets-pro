@@ -90,6 +90,26 @@ That colored text is what made spike 4 answerable at all.
 pages, and page 2 carries the styled header row above the data. Worth keeping in
 the default parameters.
 
+**The export can brand a native Table's header row, and that is the second thing
+the picture is not truthful about.** Building the golden demo produced a render
+in which every header read `Student [1]`, `Guardian email [2]`, through
+`Check [10]`, each with a column-type icon beside it. Read back from the live
+spreadsheet, the header cells hold exactly `Student` through `Check` and the
+Table's `columnProperties` hold the same ten names. The index and the icons are
+painted by the export, not stored anywhere.
+
+It is conditional and the condition is not isolated. The Table in this spike
+renders clean, with a type icon on its dropdown column only, and it is a native
+Table with typed columns created the same way. So something other than "is it a
+Table" decides whether the export paints full header chrome. The untested
+candidates, in the order worth trying, are the header notes the plugin writes,
+the warning-only header protection, the frozen header, and a preset repaint of
+the header row. Four renders varying one flag at a time would settle it.
+
+Until it is settled: a render is for the agent's own eyes, and a picture of a
+Table-based sheet that is going in front of people should be a browser
+screenshot, which shows what a colleague actually sees.
+
 ### The URL template in the plan returns 400
 
 The plan's URL sends `&gid=&r1=&c1=&r2=&c2=` with empty values. That is not the

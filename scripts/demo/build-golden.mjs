@@ -408,15 +408,22 @@ async function build() {
     freeze_header: true,
     filter: true,
     protect_header: true,
-    // Status fills are off deliberately. `status_fill_rules` paints every
-    // option, and any option not named in `status_colors` falls back to the
-    // `muted` role, which in every shipped preset is a text colour rather than
-    // a tint: park's is #6B7770. As a fill behind black text it is unreadable,
-    // and the first render of this sheet had three illegible status rows
-    // because of it. Until `muted` is either given a fill value or dropped from
-    // the status roles, the words carry the status here and the one signal
-    // worth painting is painted below, on the Check column.
-    status_fill_rules: false,
+    // Two states get a colour and the rest get the neutral fill, because the
+    // point of a status colour is to make the two states somebody scans for
+    // stand out, not to give six states six colours nobody can hold in their
+    // head. Confirmed reads as done, waiting reads as needing a nudge, and
+    // everything else is simply where the family currently is.
+    //
+    // The four unmapped options land on the preset's `muted_fill`. That role
+    // exists because of this sheet: they used to fall back to `muted`, which
+    // every preset defines as a TEXT colour (park's is #6B7770), and three
+    // status rows in the first golden render came out dark on dark.
+    status_fill_rules: true,
+    status_column: "Status",
+    status_colors: {
+      [STATUS_OPTIONS[3]]: "ok",
+      [STATUS_OPTIONS[2]]: "warn",
+    },
   });
 
   // The one conditional rule this sheet needs: a row the Check column is
