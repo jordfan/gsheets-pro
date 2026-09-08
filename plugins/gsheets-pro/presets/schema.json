@@ -4,7 +4,13 @@
   "title": "gsheets-pro preset",
   "description": "A preset compiles to a full nine-pair Google Sheets spreadsheet theme plus the role tokens every styling tool resolves against. Colors that map to a theme slot are written as ColorStyle.themeColor so Format > Theme stays the human's knob; only the roles that have no slot are written as rgbColor.",
   "type": "object",
-  "required": ["name", "fonts", "theme", "roles", "numbers"],
+  "required": [
+    "name",
+    "fonts",
+    "theme",
+    "roles",
+    "numbers"
+  ],
   "additionalProperties": false,
   "properties": {
     "name": {
@@ -18,12 +24,17 @@
     },
     "archetype_default": {
       "description": "Which archetype this preset assumes when a request does not name one. tracker keeps font color out of the data language and carries state in dropdowns and conditional rules. model uses font color to encode data role, in the financial-modeling convention.",
-      "enum": ["tracker", "model"],
+      "enum": [
+        "tracker",
+        "model"
+      ],
       "default": "tracker"
     },
     "fonts": {
       "type": "object",
-      "required": ["primary"],
+      "required": [
+        "primary"
+      ],
       "additionalProperties": false,
       "properties": {
         "primary": {
@@ -37,7 +48,9 @@
         "banned": {
           "type": "array",
           "description": "Fonts the loader refuses as primary or display, and the lint flags anywhere in the workbook. Use this to keep a house style off the defaults everyone else lands on.",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         }
       }
@@ -58,58 +71,130 @@
       ],
       "additionalProperties": false,
       "patternProperties": {
-        "^(TEXT|BACKGROUND|ACCENT[1-6]|LINK)$": { "$ref": "#/$defs/hex" }
+        "^(TEXT|BACKGROUND|ACCENT[1-6]|LINK)$": {
+          "$ref": "#/$defs/hex"
+        }
       }
     },
     "roles": {
       "type": "object",
-      "description": "Named tokens the styling tools accept in place of a color. A value that names a theme slot compiles to themeColor; a hex value compiles to rgbColor. There is deliberately no footer role, and additionalProperties is false so one cannot be added: a Table's footerColorStyle is not cosmetic. Setting it converts the last data row into a footer and silently overwrites that row's cells with SUM aggregations. A totals row must be an explicit request, never a side effect of a palette.",
-      "required": ["header", "band1", "band2", "ok", "warn", "flag", "muted"],
+      "description": "Named tokens the styling tools accept in place of a color. A value that names a theme slot compiles to themeColor; a hex value compiles to rgbColor. Fill roles and text roles are separate and not interchangeable: `muted` is text, `muted_fill` is its background counterpart. There is deliberately no footer role, and additionalProperties is false so one cannot be added: a Table's footerColorStyle is not cosmetic. Setting it converts the last data row into a footer and silently overwrites that row's cells with SUM aggregations. A totals row must be an explicit request, never a side effect of a palette.",
+      "required": [
+        "header",
+        "band1",
+        "band2",
+        "ok",
+        "warn",
+        "flag",
+        "muted",
+        "muted_fill"
+      ],
       "additionalProperties": false,
       "properties": {
         "title": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "font": { "enum": ["primary", "display"] },
-            "size": { "type": "integer", "minimum": 8, "maximum": 36 },
-            "text": { "$ref": "#/$defs/colorToken" },
-            "bold": { "type": "boolean" }
+            "font": {
+              "enum": [
+                "primary",
+                "display"
+              ]
+            },
+            "size": {
+              "type": "integer",
+              "minimum": 8,
+              "maximum": 36
+            },
+            "text": {
+              "$ref": "#/$defs/colorToken"
+            },
+            "bold": {
+              "type": "boolean"
+            }
           }
         },
         "header": {
           "type": "object",
-          "required": ["fill", "text"],
+          "required": [
+            "fill",
+            "text"
+          ],
           "additionalProperties": false,
           "properties": {
-            "fill": { "$ref": "#/$defs/colorToken" },
-            "text": { "$ref": "#/$defs/colorToken" },
-            "bold": { "type": "boolean" }
+            "fill": {
+              "$ref": "#/$defs/colorToken"
+            },
+            "text": {
+              "$ref": "#/$defs/colorToken"
+            },
+            "bold": {
+              "type": "boolean"
+            }
           }
         },
-        "band1": { "$ref": "#/$defs/colorToken" },
-        "band2": { "$ref": "#/$defs/colorToken" },
-        "input": { "$ref": "#/$defs/colorToken" },
-        "formula": { "$ref": "#/$defs/colorToken" },
-        "cross_sheet": { "$ref": "#/$defs/colorToken" },
-        "ok": { "$ref": "#/$defs/colorToken" },
-        "warn": { "$ref": "#/$defs/colorToken" },
-        "flag": { "$ref": "#/$defs/colorToken" },
-        "muted": { "$ref": "#/$defs/colorToken" }
+        "band1": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "band2": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "input": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "formula": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "cross_sheet": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "ok": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "warn": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "flag": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "muted_fill": {
+          "$ref": "#/$defs/colorToken",
+          "description": "The fill for a status that carries no state, and the only neutral fill there is. `muted` is a TEXT color and must never be used as a fill: painting a status row in it puts dark text on a dark ground, which is how three rows of a golden render came out unreadable."
+        },
+        "muted": {
+          "$ref": "#/$defs/colorToken"
+        }
       }
     },
     "numbers": {
       "type": "object",
       "description": "Number format patterns applied by column type. Percentages are always stored as fractions, so 0.256 renders as 25.6%.",
-      "required": ["currency", "percent", "date", "integer"],
+      "required": [
+        "currency",
+        "percent",
+        "date",
+        "integer"
+      ],
       "additionalProperties": false,
       "properties": {
-        "currency": { "type": "string" },
-        "percent": { "type": "string" },
-        "date": { "type": "string" },
-        "integer": { "type": "string" },
-        "decimal": { "type": "string" },
-        "multiple": { "type": "string" }
+        "currency": {
+          "type": "string"
+        },
+        "percent": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "integer": {
+          "type": "string"
+        },
+        "decimal": {
+          "type": "string"
+        },
+        "multiple": {
+          "type": "string"
+        }
       }
     },
     "tabs": {
@@ -117,14 +202,23 @@
       "description": "Tab colors by sheet role, so inputs, workings, and outputs are told apart before anyone opens a tab.",
       "additionalProperties": false,
       "properties": {
-        "inputs": { "$ref": "#/$defs/colorToken" },
-        "workings": { "$ref": "#/$defs/colorToken" },
-        "outputs": { "$ref": "#/$defs/colorToken" }
+        "inputs": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "workings": {
+          "$ref": "#/$defs/colorToken"
+        },
+        "outputs": {
+          "$ref": "#/$defs/colorToken"
+        }
       }
     },
     "gridlines": {
       "description": "always_show keeps gridlines on. hide_when_banded turns them off on any sheet where banding or a Table already separates rows.",
-      "enum": ["always_show", "hide_when_banded"],
+      "enum": [
+        "always_show",
+        "hide_when_banded"
+      ],
       "default": "hide_when_banded"
     }
   },
@@ -137,8 +231,22 @@
     "colorToken": {
       "description": "Either a theme slot name, which compiles to ColorStyle.themeColor and re-skins when the preset changes, or a hex value for a color no slot covers.",
       "oneOf": [
-        { "enum": ["TEXT", "BACKGROUND", "ACCENT1", "ACCENT2", "ACCENT3", "ACCENT4", "ACCENT5", "ACCENT6", "LINK"] },
-        { "$ref": "#/$defs/hex" }
+        {
+          "enum": [
+            "TEXT",
+            "BACKGROUND",
+            "ACCENT1",
+            "ACCENT2",
+            "ACCENT3",
+            "ACCENT4",
+            "ACCENT5",
+            "ACCENT6",
+            "LINK"
+          ]
+        },
+        {
+          "$ref": "#/$defs/hex"
+        }
       ]
     }
   }

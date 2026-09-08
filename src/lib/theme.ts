@@ -126,7 +126,17 @@ const presetSchema = z
         ok: colorToken,
         warn: colorToken,
         flag: colorToken,
+        /**
+         * A TEXT color, for footnotes, source lines and units. Never a fill:
+         * see muted_fill.
+         */
         muted: colorToken,
+        /**
+         * The fill for a status that carries no state, and the only neutral
+         * fill there is. Separate from `muted` because that one is text, and
+         * painting a row in a text color puts dark on dark.
+         */
+        muted_fill: colorToken,
       })
       .strict(),
     numbers: z
@@ -280,6 +290,62 @@ export interface PresetProblem {
   message: string;
 }
 
+interface FillPair {
+  name: string;
+  fill: Color;
+  text: Color;
+  textLabel: string;
+  severity: "error" | "warning";
+  why: string;
+}
+
+/**
+ * Every fill this preset can paint, paired with the text that lands on it.
+ *
+ * The header carries its own text color and is an error when it fails, because
+ * a header is the one cell everybody reads. The rest carry ordinary cell text,
+ * which is the theme's TEXT slot, and are warnings: a preset may reasonably
+ * pair a bold fill with an explicit text color the author sets per call.
+ */
+function fillPairs(preset: Preset): FillPair[] {
+  const text = parseColor(preset.theme.TEXT);
+  const pairs: FillPair[] = [
+    {
+      name: "header",
+      fill: resolveToken(preset, preset.roles.header.fill),
+      text: resolveToken(preset, preset.roles.header.text),
+      textLabel: "Header text",
+      severity: "error",
+      why: "A header is the row everybody reads.",
+    },
+  ];
+
+  const onBodyText: Array<[string, string, string]> = [
+    ["band1", preset.roles.band1, "Banding is behind every row of the table."],
+    ["band2", preset.roles.band2, "Banding is behind every row of the table."],
+    ["ok", preset.roles.ok, "Status fills carry ordinary cell text."],
+    ["warn", preset.roles.warn, "Status fills carry ordinary cell text."],
+    ["flag", preset.roles.flag, "Status fills carry ordinary cell text."],
+    [
+      "muted_fill",
+      preset.roles.muted_fill,
+      "This is the fill for a status carrying no state, and the text on it is ordinary black.",
+    ],
+  ];
+  for (const [name, token, why] of onBodyText) {
+    if (!token) continue;
+    pairs.push({
+      name,
+      fill: resolveToken(preset, token),
+      text,
+      textLabel: "Body text",
+      severity: "warning",
+      why,
+    });
+  }
+  return pairs;
+}
+
 /** Resolve a color token against a preset's own theme, to a literal color. */
 export function resolveToken(preset: Preset, token: string): Color {
   const slot = parseThemeSlot(token);
@@ -337,15 +403,17 @@ export function checkPreset(preset: Preset): PresetProblem[] {
   }
 
   const text = parseColor(preset.theme.TEXT);
-  for (const role of ["ok", "warn", "flag"] as const) {
-    const fill = resolveToken(preset, preset.roles[role]);
-    const ratio = contrastRatio(fill, text);
-    if (ratio < MIN_HEADER_CONTRAST) {
-      problems.push({
-        severity: "warning",
-        message: `Body text on the ${role} fill reaches ${ratio.toFixed(2)} to 1. Status fills carry ordinary cell text, so they want ${MIN_HEADER_CONTRAST} to 1 too.`,
-      });
-    }
+  // Every fill the compiler can emit, checked against the text that will sit
+  // on it. This is the check that would have caught `muted` being used as a
+  // status fill: it is a text color, so against black text it reaches about
+  // 1.9 to 1 and three rows of a golden render came out unreadable.
+  for (const pair of fillPairs(preset)) {
+    const ratio = contrastRatio(pair.fill, pair.text);
+    if (ratio >= MIN_HEADER_CONTRAST) continue;
+    problems.push({
+      severity: pair.severity,
+      message: `${pair.textLabel} on the ${pair.name} fill reaches only ${ratio.toFixed(2)} to 1. ${pair.why} Anything a cell's text sits on wants ${MIN_HEADER_CONTRAST} to 1.`,
+    });
   }
 
   for (const [name, spec] of Object.entries(preset.numbers)) {

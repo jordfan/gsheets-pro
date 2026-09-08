@@ -340,15 +340,23 @@ export function columnMetadataWrite(input: ColumnMetadataInput): MetadataWrite {
 // ---------------------------------------------------------------------------
 
 /**
- * Which role a status option should be painted in.
+ * Which role a status option should be painted in, or nothing.
  *
  * The API has no color field on any validation rule, so a dropdown's chips can
  * only be colored by hand in the UI. Where a person would reach for chips, the
  * plugin paints the same meaning with conditional format rules, and this is the
  * reading of what each option means. It is a guess made explicit: every rule it
  * produces is reported back by name so a wrong one is visible.
+ *
+ * An option this does not recognise gets `undefined`, and no rule at all. It
+ * used to get `muted`, which painted every unfamiliar status in a colour that
+ * asserted something the plugin did not know. A status with no recognised
+ * meaning has no colour: an unpainted row reads as "no state claimed", which
+ * is the truth, and a five-option dropdown does not end up in five colours
+ * three of which mean nothing. `muted` is still available as an explicit
+ * override for a status genuinely meant to look inactive.
  */
-export function defaultStatusRole(option: string): StatusRole {
+export function defaultStatusRole(option: string): StatusRole | undefined {
   const text = String(option ?? "").trim().toLowerCase();
   if (/^(confirmed|complete|completed|done|approved|paid|signed|yes|active|enrolled|received|ok)\b/.test(text)) {
     return "ok";
@@ -359,7 +367,7 @@ export function defaultStatusRole(option: string): StatusRole {
   if (/^(declined|cancelled|canceled|overdue|late|blocked|failed|rejected|no|dropped|missing|expired)\b/.test(text)) {
     return "flag";
   }
-  return "muted";
+  return undefined;
 }
 
 export interface StatusFillSpec {
@@ -367,12 +375,18 @@ export interface StatusFillSpec {
   role: StatusRole;
 }
 
-/** Pair each dropdown option with the role that paints it. */
+/**
+ * Pair each dropdown option with the role that paints it.
+ *
+ * Options with no recognised meaning are dropped rather than given a colour,
+ * so the caller generates no rule for them. Name one in `overrides` to paint
+ * it anyway.
+ */
 export function statusFillSpecs(
   options: string[],
   overrides: Record<string, string> = {},
 ): StatusFillSpec[] {
-  return options.map((option) => {
+  return options.flatMap((option) => {
     const override = overrides[option] ?? overrides[option.toLowerCase()];
     if (override) {
       if (!(STATUS_ROLES as readonly string[]).includes(override)) {
@@ -382,9 +396,10 @@ export function statusFillSpecs(
           `The status roles are: ${STATUS_ROLES.join(", ")}.`,
         );
       }
-      return { option, role: override as StatusRole };
+      return [{ option, role: override as StatusRole }];
     }
-    return { option, role: defaultStatusRole(option) };
+    const role = defaultStatusRole(option);
+    return role ? [{ option, role }] : [];
   });
 }
 

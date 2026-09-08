@@ -62,7 +62,25 @@ not re-skin, which is why the presets keep them few.
 | `formula` | Font color for a calculated cell (`model` archetype only) |
 | `cross_sheet` | Font color for a formula reading another tab |
 | `ok`, `warn`, `flag` | Status fills, applied only by conditional rule or chip |
-| `muted` | Secondary text: footnotes, source lines, units |
+| `muted_fill` | The fill for a status carrying no state. The only neutral fill |
+| `muted` | Secondary **text**: footnotes, source lines, units. Never a fill |
+
+**Fill roles and text roles are not interchangeable.** `muted` is a text color
+and `muted_fill` is its background counterpart, and the pair is split because
+they were once one value: a status painted in `muted` put dark text on a dark
+ground, and three rows of a rendered sheet came back unreadable. The compiler
+now checks every fill it can emit against the text that will sit on it, but
+that check is a backstop rather than the guarantee. On the park preset the old
+value measured 4.4979 against black text where the bar is 4.5, so it failed by
+two thousandths; one shade lighter and the numbers would have had nothing to
+say while the sheet looked just as bad. What prevents it is that a text role is
+no longer reachable where a fill is wanted.
+
+A status option the plugin does not recognise gets **no fill at all** rather
+than a neutral one. An unpainted row reads as "no state claimed", which is the
+truth about a word nothing here understands, and it keeps a five-option
+dropdown from turning into five colors of which three mean nothing. Name the
+option explicitly in `status_colors` to paint it anyway.
 
 Plus `numbers` (currency, percent, date, integer, decimal, multiple) and `tabs`
 (inputs, workings, outputs), which colors a tab by its role so the three-way
@@ -106,8 +124,12 @@ installed `park` without editing the plugin.
 The loader validates three things and refuses the preset rather than shipping a
 sheet that fails them:
 
-- **Contrast.** Header fill against header text must reach 4.5 to 1. This is the
-  WCAG AA threshold for normal text, and a header is normal text.
+- **Contrast.** Every fill the preset can paint is checked against the text that
+  will sit on it: the header against its own text color, and the bands, the
+  three status fills and `muted_fill` against the theme's TEXT. All want 4.5 to
+  1, the WCAG AA threshold for normal text, because all of them end up behind
+  normal text. A failing header refuses the preset; the rest are warnings, since
+  a bold fill may be paired with a text color set per call.
 - **Banding separation.** `band1` and `band2` must differ enough to read as
   bands. Two nearly identical greys are worse than no banding, because they look
   like a rendering artifact.

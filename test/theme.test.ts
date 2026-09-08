@@ -50,6 +50,7 @@ const MINIMAL = {
     ok: "#E3F0E9",
     warn: "#FBF0D3",
     flag: "#F5E2E0",
+    muted_fill: "#EEF0F2",
     muted: "#6B7280",
   },
   numbers: { currency: '"$"#,##0', percent: "0.0%", date: "yyyy-mm-dd", integer: "#,##0" },
@@ -105,6 +106,70 @@ describe("validation", () => {
   test("a banned font is refused as the primary", () => {
     const bad = preset({ fonts: { primary: "Inter", display: "Georgia", banned: ["Inter"] } });
     expect(checkPreset(bad).some((p) => /banned list/.test(p.message))).toBe(true);
+  });
+
+  test("a fill too dark for the text on it is caught", () => {
+    const bad = preset({ roles: { ...MINIMAL.roles, muted_fill: "#4A4A4A" } });
+    const hit = checkPreset(bad).find((p) => p.message.includes("muted_fill"));
+    expect(hit).toBeDefined();
+    expect(hit!.message).toContain("to 1");
+  });
+
+  test("the golden render's colour clears the bar by two thousandths, which is why the roles are separate", () => {
+    // The defect was park's `muted`, a text colour, used as a status fill.
+    // Against park's black text it measures 4.4979 to 1 and the threshold is
+    // 4.5, so the contrast check does refuse it, by 0.0021. Rounded for
+    // display it even prints as "4.50".
+    //
+    // A check that catches a defect by two thousandths is luck, not a
+    // guarantee: a preset one shade lighter would have sailed through and
+    // rendered just as badly. So the fix that matters is the structural one,
+    // that a text role is not reachable as a fill at all, and this contrast
+    // check is a backstop rather than the thing being relied on.
+    const parkMuted = preset({
+      theme: { ...MINIMAL.theme, TEXT: "#000000" },
+      roles: { ...MINIMAL.roles, muted_fill: "#6B7770" },
+    });
+    expect(checkPreset(parkMuted).some((p) => p.message.includes("muted_fill"))).toBe(true);
+
+    // One shade lighter and the numbers stop objecting, while the fill is
+    // still a text colour and still wrong.
+    const slightlyLighter = preset({
+      theme: { ...MINIMAL.theme, TEXT: "#000000" },
+      roles: { ...MINIMAL.roles, muted_fill: "#6C7871" },
+    });
+    expect(checkPreset(slightlyLighter).some((p) => p.message.includes("muted_fill"))).toBe(false);
+  });
+
+  test("the structural fix: a text role never resolves as a fill", () => {
+    // This is what actually prevents the defect. resolveFill("muted") returns
+    // the pale muted_fill; the text colour is only reachable through the text
+    // helper. The two used to be one value.
+    const park = loadPreset("park");
+    expect(park.roles.muted_fill).toBeDefined();
+    expect(park.roles.muted_fill).not.toBe(park.roles.muted);
+  });
+
+  test("every fill the compiler can emit is checked against the text on it", () => {
+    // Not just the header. A banding or a status fill carries cell text too,
+    // and each was previously unchecked or checked in only one direction.
+    for (const role of ["band1", "band2", "ok", "warn", "flag", "muted_fill"] as const) {
+      const bad = preset({ roles: { ...MINIMAL.roles, [role]: "#101010" } });
+      const problems = checkPreset(bad);
+      expect(
+        problems.some((p) => p.message.includes(role)),
+        `${role} should have been checked against the body text`,
+      ).toBe(true);
+    }
+  });
+
+  test("the presets that ship all pass their own fill checks", () => {
+    for (const name of ["neutral", "park", "finance-classic"]) {
+      const problems = checkPreset(loadPreset(name)).filter((p) =>
+        /reaches only/.test(p.message),
+      );
+      expect(problems, `${name} has an unreadable fill`).toEqual([]);
+    }
   });
 
   test("two bands that barely differ are refused", () => {

@@ -6,7 +6,11 @@
   "fonts": {
     "primary": "Open Sans",
     "display": "EB Garamond",
-    "banned": ["Inter", "Roboto", "Arial"]
+    "banned": [
+      "Inter",
+      "Roboto",
+      "Arial"
+    ]
   },
   "theme": {
     "TEXT": "#000000",
@@ -20,8 +24,17 @@
     "LINK": "#187054"
   },
   "roles": {
-    "title": { "font": "display", "size": 16, "text": "ACCENT1", "bold": false },
-    "header": { "fill": "ACCENT1", "text": "BACKGROUND", "bold": true },
+    "title": {
+      "font": "display",
+      "size": 16,
+      "text": "ACCENT1",
+      "bold": false
+    },
+    "header": {
+      "fill": "ACCENT1",
+      "text": "BACKGROUND",
+      "bold": true
+    },
     "band1": "BACKGROUND",
     "band2": "#EEF4F1",
     "input": "#1155CC",
@@ -30,6 +43,7 @@
     "ok": "#DDF3E6",
     "warn": "#FFF1CC",
     "flag": "#F3E1DC",
+    "muted_fill": "#EFF1EF",
     "muted": "#6B7770"
   },
   "numbers": {

@@ -20,8 +20,17 @@
     "LINK": "#0563C1"
   },
   "roles": {
-    "title": { "font": "display", "size": 14, "text": "ACCENT1", "bold": true },
-    "header": { "fill": "ACCENT1", "text": "BACKGROUND", "bold": true },
+    "title": {
+      "font": "display",
+      "size": 14,
+      "text": "ACCENT1",
+      "bold": true
+    },
+    "header": {
+      "fill": "ACCENT1",
+      "text": "BACKGROUND",
+      "bold": true
+    },
     "band1": "BACKGROUND",
     "band2": "BACKGROUND",
     "input": "#0000FF",
@@ -30,6 +39,7 @@
     "ok": "#E2EFDA",
     "warn": "ACCENT4",
     "flag": "#F8CBAD",
+    "muted_fill": "#F2F2F2",
     "muted": "#808080"
   },
   "numbers": {

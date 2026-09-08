@@ -163,7 +163,28 @@ describe("status fills", () => {
     expect(defaultStatusRole("Confirmed")).toBe("ok");
     expect(defaultStatusRole("Pending")).toBe("warn");
     expect(defaultStatusRole("Declined")).toBe("flag");
-    expect(defaultStatusRole("Something else")).toBe("muted");
+  });
+
+  test("a word it does not recognise gets no colour rather than a made-up one", () => {
+    // It used to return "muted", which is a TEXT colour, so every unfamiliar
+    // status was painted dark on dark. An unpainted row reads as "no state
+    // claimed", which is the truth about a status nothing here understands.
+    expect(defaultStatusRole("Something else")).toBeUndefined();
+    expect(defaultStatusRole("Cohort B")).toBeUndefined();
+    expect(defaultStatusRole("")).toBeUndefined();
+  });
+
+  test("an unrecognised option produces no rule at all", () => {
+    expect(statusFillSpecs(["Confirmed", "Cohort B", "Declined"])).toEqual([
+      { option: "Confirmed", role: "ok" },
+      { option: "Declined", role: "flag" },
+    ]);
+  });
+
+  test("but naming one explicitly still paints it", () => {
+    expect(statusFillSpecs(["Cohort B"], { "Cohort B": "muted" })).toEqual([
+      { option: "Cohort B", role: "muted" },
+    ]);
   });
 
   test("an override wins and a bad one is refused", () => {

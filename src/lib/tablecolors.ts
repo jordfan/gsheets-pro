@@ -61,6 +61,7 @@ export interface Preset {
     warn: string;
     flag: string;
     muted: string;
+    muted_fill: string;
   };
   numbers: {
     currency: string;
@@ -119,7 +120,7 @@ export function parsePreset(raw: unknown, name: string): Preset {
   if (!preset || typeof preset !== "object") missing.push("the whole file");
   if (!preset?.fonts?.primary) missing.push("fonts.primary");
   if (!preset?.roles?.header?.fill || !preset?.roles?.header?.text) missing.push("roles.header");
-  for (const role of ["band1", "band2", "ok", "warn", "flag", "muted"] as const) {
+  for (const role of ["band1", "band2", "ok", "warn", "flag", "muted", "muted_fill"] as const) {
     if (!preset?.roles?.[role]) missing.push(`roles.${role}`);
   }
   for (const slot of THEME_SLOTS) {
@@ -196,7 +197,11 @@ function roleValue(preset: Preset, role: string): string | undefined {
     case "flag":
       return preset.roles.flag;
     case "muted":
-      return preset.roles.muted;
+      // A fill, never the `muted` text color. They are different values for a
+      // reason: painting a row in the text color puts dark text on a dark
+      // ground, which is how three rows of a golden render came out
+      // unreadable. resolveMutedText is what wants roles.muted.
+      return preset.roles.muted_fill;
     case "input":
       return preset.roles.input;
     case "formula":
@@ -240,6 +245,7 @@ export function resolveInputText(preset: Preset): ColorStyle | undefined {
   return preset.roles.input ? parseColorStyle(preset.roles.input) : undefined;
 }
 
+/** The text color for secondary content: footnotes, source lines, units. */
 export function resolveMutedText(preset: Preset): ColorStyle {
   return parseColorStyle(preset.roles.muted);
 }

@@ -12,6 +12,7 @@ import {
   numberFormatForSettings,
   parsePreset,
   resolveFill,
+  resolveMutedText,
   resolveHeaderText,
   resolveInputText,
   tableRowsProperties,
@@ -61,6 +62,26 @@ describe("resolving a fill", () => {
   test("a caller may pass a theme slot or a hex directly", () => {
     expect(resolveFill(preset, "theme:ACCENT3")).toEqual({ themeColor: "ACCENT3" });
     expect(resolveFill(preset, "#102030").rgbColor).toBeDefined();
+  });
+
+  test("the muted role resolves to a fill, never to the muted text colour", () => {
+    // The defect: these were one value. resolveFill("muted") handed back
+    // #6B7770 on park, a text colour, and a golden render came out with three
+    // status rows of dark text on a dark ground.
+    const park = loadPreset("park");
+    const fill = resolveFill(park, "muted");
+    const text = resolveMutedText(park);
+    expect(fill).not.toEqual(text);
+    expect(fill.rgbColor?.red).toBeGreaterThan(0.9);
+  });
+
+  test("every preset keeps its fill and its text colour apart", () => {
+    for (const name of availablePresets()) {
+      const preset = loadPreset(name);
+      expect(resolveFill(preset, "muted"), `${name} paints muted with its text colour`).not.toEqual(
+        resolveMutedText(preset),
+      );
+    }
   });
 
   test("nonsense names the roles in the hint", () => {
