@@ -116,14 +116,25 @@ Hide gridlines only when banding or borders already separate the rows. Without
 that structure, hiding gridlines makes a sheet harder to read, not cleaner.
 
 **Column widths: autofit the values, fix and wrap the prose, and give a chip
-column about 30 percent more than autofit offers.** Autofit is right for a
-column of short values and wrong for a column of sentences, which it makes wider
-than the page, so those get a fixed width and `wrap` instead.
+column about half again what autofit gives.** Autofit is right for a column of
+short values and wrong for a column of sentences, which it makes wider than the
+page, so those get a fixed width and `wrap` instead.
 
 The dropdown exception is the one that catches people. A chip renders with
 padding around its text and an arrow beside it, and none of that is in the
-string the API measures, so an autofitted dropdown column comes out reliably too
-narrow and clips the longest option in the browser. Add roughly a third.
+string the API measures, so an autofitted dropdown column is reliably too narrow
+and clips its longest option in the browser. On the golden sheet autofit gave
+about 230 pixels and the column needed 330. Both 240 and 300 still clipped.
+
+Half again is a starting point, not a formula. The shortfall is the padding and
+the arrow, which are close to a fixed number of pixels, so as a proportion it
+grows with the length of the longest option: a column of short statuses needs
+proportionally more than a column of long ones.
+
+**Confirm a chip column in the browser.** Nothing else can see this. The lint
+has no rule for it, and a render is worse than useless here, because dropdowns
+paint as plain text with no pill at all, so the render shows a column that fits
+comfortably while the real sheet clips.
 
 Hand-picking widths for everything else is a losing game. Widening one column
 truncates the next, and the next change to the data moves the truncation again.

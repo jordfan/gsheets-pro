@@ -15,10 +15,9 @@ actually has.
 
 ## The loop
 
-1. **`sheets_open` first, always.** It returns the tabs, the native Tables, the
-   named ranges, the protections, the detected preset, and the contract that
-   says which columns are yours to write. Never write to a spreadsheet you have
-   not opened in this session.
+1. **`sheets_open` first, always.** It returns the tabs, Tables, named ranges,
+   protections, detected preset, and the contract saying which columns are yours
+   to write. Never write to a spreadsheet you have not opened this session.
 2. **Plan before you call.** Name the tabs, the Table columns and their types,
    which cells are inputs, and which are formulas. A plan you can state in three
    sentences produces a sheet someone can read.
@@ -65,9 +64,10 @@ expect before you fill a column.
 6. **Freeze the header row. Never merge inside a data region.** Merges break
    sorting, filtering, and most formulas. Merge only a title banner outside the
    table body. Autofit the columns holding values, give a column of sentences a
-   fixed width and `wrap`, and give a dropdown column about 30 percent more than
-   autofit offers, because a chip's padding and arrow are not in the text the
-   API measures. `sheets_style`, and lint rules L04 and L09.
+   fixed width and `wrap`, and start a dropdown column at about half again what
+   autofit gives, because a chip's padding and arrow are not in the text the API
+   measures. Confirm that one in the browser: a clipped chip is invisible to
+   both the lint and a render. `sheets_style`, and lint rules L04 and L09.
 7. **Write the documentation into the sheet.** A note on each header cell says
    what the column means and its units. Validation help text says what a valid
    entry looks like. Both read as if a colleague wrote them for another
@@ -91,10 +91,9 @@ The tools refuse rather than guess, and the refusal names the fix:
   decide whether you meant to, then pass `force` if you did.
 - A write into a column the registry or the sheet's own metadata marks as
   human-owned.
-- Rewriting a data validation rule the plugin did not create. Rewriting one,
-  even with an identical condition, wipes the chip colors a person set by hand.
-  That is measured, not a worry, and the colors cannot be put back because the
-  API never exposed them. The tool reports the rule as `ui_owned`.
+- Rewriting a data validation rule the plugin did not create. Even an identical
+  condition wipes the chip colors a person set by hand, and nothing can put them
+  back, because the API never exposed them. Reported as `ui_owned`.
 - Any destructive structural change without a `confirm` string naming the sheet,
   and on a spreadsheet marked `positional_rows` these are refused outright
   because other people's formulas point at row numbers.
