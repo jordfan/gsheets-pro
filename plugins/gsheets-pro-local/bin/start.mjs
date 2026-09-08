@@ -21,7 +21,12 @@
  * `npm run build`), and then packs only what package.json's "files" list
  * names (dist/, README, LICENSE, NOTICE) into the target directory — no
  * TypeScript toolchain left behind, no source tree, just a built package with
- * its runtime dependencies.
+ * its runtime dependencies. The spec is pinned to this plugin's own version,
+ * `#v<version>` from `.claude-plugin/plugin.json`, when that tag exists on
+ * the repository (`tagExists`, one `git ls-remote`, not a clone), falling
+ * back to the default branch, with a one-line note on stderr, when it does
+ * not: this repository has not cut a release yet, so today every install
+ * takes that fallback, and the pin starts doing something the day it does.
  *
  * The install goes into `${CLAUDE_PLUGIN_DATA}`, which Claude Code gives every
  * plugin a persistent, writable directory for, keyed by this plugin's own
@@ -45,7 +50,8 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = join(HERE, "..");
-const REPO_GIT_SPEC = "git+https://github.com/jordfan/gsheets-pro.git";
+const REPO_URL = "https://github.com/jordfan/gsheets-pro.git";
+const REPO_GIT_SPEC = `git+${REPO_URL}`;
 
 function status(message) {
   process.stderr.write(`gsheets-pro-local: ${message}\n`);
@@ -69,17 +75,55 @@ const dataDir = process.env.CLAUDE_PLUGIN_DATA ?? join(PLUGIN_ROOT, ".gsheets-pr
 const installDir = join(dataDir, "server", pluginVersion());
 const CLI = join(installDir, "node_modules", "gsheets-pro", "dist", "cli.js");
 
+/**
+ * Whether tag `v<version>` exists on the repository, checked with a plain
+ * `git ls-remote`, one ref lookup, not a clone. This is what lets the install
+ * below pin to the exact commit that shipped this copy of the plugin instead
+ * of always tracking the default branch's moving HEAD: same version installed
+ * twice gets the same code, and `npm`'s own git-dependency cache can serve a
+ * pinned ref with no network call at all once it has seen it.
+ */
+function tagExists(version) {
+  try {
+    execFileSync("git", ["ls-remote", "--exit-code", "--tags", REPO_URL, `refs/tags/v${version}`], {
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The spec `npm install` gets. Pinned to this plugin's own version when that
+ * tag exists; the default branch otherwise, since a version with no tag yet
+ * (this repository has not cut its first release) has nothing to pin to. The
+ * fallback prints one line so a version that SHOULD have a tag and does not
+ * (a release that failed partway, a typo) is visible rather than silently
+ * serving whatever the default branch happens to be.
+ */
+function resolveGitSpec() {
+  const version = pluginVersion();
+  if (version === "unknown") return REPO_GIT_SPEC;
+  if (tagExists(version)) return `${REPO_GIT_SPEC}#v${version}`;
+  status(
+    `no v${version} tag found on the repository (or it could not be checked); installing from the default branch instead.`,
+  );
+  return REPO_GIT_SPEC;
+}
+
 function install() {
+  const spec = resolveGitSpec();
   status("installing the server (first run after install or an upgrade; this can take a minute)...");
   mkdirSync(installDir, { recursive: true });
   try {
     execFileSync(
       "npm",
-      ["install", "--no-audit", "--no-fund", "--prefix", installDir, REPO_GIT_SPEC],
+      ["install", "--no-audit", "--no-fund", "--prefix", installDir, spec],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
   } catch (error) {
-    status(`install failed (${REPO_GIT_SPEC} into ${installDir}).`);
+    status(`install failed (${spec} into ${installDir}).`);
     if (error.stdout?.length) process.stderr.write(error.stdout);
     if (error.stderr?.length) process.stderr.write(error.stderr);
     process.exit(typeof error.status === "number" ? error.status : 1);
