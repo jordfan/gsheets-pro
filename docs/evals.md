@@ -176,6 +176,37 @@ prose a fixed width and `wrap`.** Autofitting a column of sentences makes it
 wider than the page; hand-sizing a column of values is guesswork that goes stale
 the first time somebody adds a longer name.
 
+**5. `sheets_table create` promises to write the header text and does not.**
+`columns[].name` is described in the schema as "The header text, which is also
+the Table column's name". It becomes `columnName` in the Table's column
+properties, and `headerNoteRequests` puts a note on the header cell, but nothing
+writes the name into the cell itself. `createTable` reads the header row through
+`headerRowFrom` and takes whatever is there as given.
+
+The consequence is not cosmetic. A Table column whose header cell is empty when
+`addTable` runs gets a display name Sheets generates for it, and the export then
+renders the whole header row in a bracketed form: `Student [1]`,
+`Guardian email [2]`, through `Check [10]`. The golden build seeded only the six
+columns a person fills in and left `sheets_table` to name the four computed ones,
+so every header in the first four renders carried an index.
+
+Spike 3 is the control. It passes the same kind of `columnName` values through a
+raw `addTable`, but it writes all five header cells first, and
+`spikes/out/spike3-tables-1.png` shows clean headers carrying the same Table
+type icons. So the bracket is not something the export adds to Tables. It is what
+Sheets shows for a column that has no header cell of its own.
+
+Two changes follow, and only the first is mine:
+
+- The demo now writes all ten headers before creating the Table. Fixed.
+- `src/tools/table.ts` should either write `columns[].name` into the header cell
+  on `create`, which is what the schema says it does, or say plainly that the
+  caller writes the header row first and refuse a `create` whose range has a
+  blank header cell. Writing it is the better fix: the tool already holds the
+  name, the range and the header row, and a Table column with no header cell is
+  not a state any caller wants. `adopt` should keep reading the row as it does
+  now, because adopting is explicitly not repainting.
+
 One thing worked exactly as designed and is worth recording. The render is
 truthful about API-created dropdowns being invisible, so the picture gave no
 false comfort about the Status column, and `sheets_check`'s L22 finding on the

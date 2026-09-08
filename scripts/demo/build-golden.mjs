@@ -66,6 +66,18 @@ const STATUS_OPTIONS = [
   "Not continuing this term",
 ];
 
+/**
+ * All ten headers, including the four computed columns, written before the
+ * Table is created.
+ *
+ * Every one of them matters. `sheets_table create` does not write header cell
+ * values: it reads the header row and records `columnName` in the Table's
+ * column properties. A column whose header cell is empty at that moment gets a
+ * display name Sheets generates, which comes out of the export as
+ * "Lessons [7]", and the bracketed form then applies to the whole header row.
+ * The first golden build seeded only the six columns a person fills in, and
+ * every header rendered as "Student [1]", "Guardian email [2]" and so on.
+ */
 const ROSTER_HEADERS = [
   "Student",
   "Guardian email",
@@ -73,7 +85,14 @@ const ROSTER_HEADERS = [
   "Teacher",
   "Length",
   "Status",
+  "Lessons",
+  "Term fee",
+  "Lesson override",
+  "Check",
 ];
+
+/** How many of those columns carry seeded data. The rest are computed. */
+const HUMAN_COLUMN_COUNT = 6;
 
 const ROSTER_ROWS = [
   ["Wren Adeyemi-Clarke", "wren.family@example.org", "Cello", "N. Okafor", "30", STATUS_OPTIONS[3]],
@@ -277,6 +296,11 @@ async function call(name, args) {
  * missing, because a summary written one row too low is a cosmetic problem and
  * a summary written on top of the assumptions is not.
  */
+/** 1 gives "A", 6 gives "F". The demo never goes past Z. */
+function columnLetter(oneBased) {
+  return String.fromCharCode(64 + oneBased);
+}
+
 function rowBelow(rangeA1, gap) {
   const end = typeof rangeA1 === "string" ? rangeA1.split(":").pop() : "";
   const row = Number.parseInt(String(end).replace(/[^0-9]/g, ""), 10);
@@ -349,15 +373,26 @@ async function build() {
   // somebody adds a fifth assumption.
   const summaryRow = rowBelow(settings?.settings?.range, 2);
 
-  // 4. The values a person owns, written before the Table exists, so the
-  //    contract this build is about to record is never something the build
-  //    itself had to force its way past.
+  // 4a. Every header, all ten, before the Table exists. See ROSTER_HEADERS:
+  //     a Table column whose header cell is blank at create time gets a name
+  //     Sheets makes up, and the whole header row renders bracketed.
   await call("sheets_write", {
     spreadsheet_id: id,
     sheet: "Roster",
     mode: "range",
-    range: `A1:F${LAST_DATA_ROW}`,
-    values: [ROSTER_HEADERS, ...ROSTER_ROWS],
+    range: "A1:J1",
+    values: [ROSTER_HEADERS],
+  });
+
+  // 4b. The values a person owns, written before the Table exists, so the
+  //     contract this build is about to record is never something the build
+  //     itself had to force its way past.
+  await call("sheets_write", {
+    spreadsheet_id: id,
+    sheet: "Roster",
+    mode: "range",
+    range: `A${FIRST_DATA_ROW}:${columnLetter(HUMAN_COLUMN_COUNT)}${LAST_DATA_ROW}`,
+    values: ROSTER_ROWS,
   });
 
   // 5. The Table: typed columns, a note on every header, a frozen header, and
