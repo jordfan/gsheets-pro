@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.jordfan/gsheets-pro",
+  "description": "Google Sheets for Claude Code: themed Tables, a lint and render verify loop, human-safe writes.",
+  "title": "gsheets-pro",
+  "version": "0.1.0",
+  "websiteUrl": "https://github.com/jordfan/gsheets-pro",
+  "repository": {
+    "url": "https://github.com/jordfan/gsheets-pro",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "gsheets-pro",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "stdio"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "GSHEETS_PRO_OAUTH_CLIENT",
+          "description": "Path to a Desktop OAuth client JSON file, for Path A setup. Leave unset to fall back to gcloud Application Default Credentials (Path B). See the setup skill or docs/LIMITATIONS.md § Authentication.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "GSHEETS_PRO_TOKEN_FILE",
+          "description": "Where the signed-in Google credential is stored. Defaults under the server's data directory. Run `gsheets-pro auth` once to create it before adding this server to a client.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "GSHEETS_PRO_DATA_DIR",
+          "description": "Overrides where tokens, caches, and local renders are written. Defaults to a per-user plugin data directory.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
