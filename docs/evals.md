@@ -105,16 +105,21 @@ Two things worth knowing that are easy to get wrong:
 
 `scripts/demo/build-golden.mjs` did run, repeatedly, against the live API. It
 builds the demo spreadsheet by driving the shipped stdio server over MCP, so it
-exercises the same fifteen calls a real session makes. That turned out to be the
-most useful test in this whole piece of work, because the render caught four
+exercises the same sixteen calls a real session makes. That turned out to be the
+most useful test in this whole piece of work, because the render caught five
 defects that a clean lint did not.
 
 The sheet it produces is at
 `https://docs.google.com/spreadsheets/d/1HII7AoE8OBxEUu1_cxlEa8XHpdvJpb-MVGuZCwBu0hE/edit`,
-built 2026-09-07, and the render it kept is `docs/images/golden-roster.png`. It
-needs sharing view-only before the README or the skill points at it. Rerunning
-the script makes a new spreadsheet rather than updating that one, so the link in
-the README is a decision, not an output.
+and the render it kept is `docs/images/golden-roster.png`. It is shared to anyone
+with the link as a reader, verified by fetching it with no credentials at all.
+Rerunning the script makes a new spreadsheet rather than updating that one, and
+does not share it, so the link in the README is a decision and two deliberate
+steps, not an output.
+
+The README and site hero is a browser screenshot of that sheet rather than the
+render, because the export brands Table headers with a column index that is not
+in the sheet. Finding 5 below.
 
 The lint said `success, 0 errors in 28 formulas` on the very first build. The
 picture said otherwise.
