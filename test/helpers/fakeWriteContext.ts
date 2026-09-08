@@ -1,15 +1,19 @@
 /**
- * A Sheets client that can be written to.
+ * A Sheets client whose cell values can be written to.
  *
- * `fakeContext.ts` is read only, which is right for `sheets_open` and
- * `sheets_read` and not enough for the write and style tools: those need the
- * values they send to come back out of the error gate, and they need the exact
- * batchUpdate requests recorded so a test can assert that, for instance,
- * `footerColorStyle` never appears anywhere.
+ * There are three fakes and each answers a different question. `fakeContext.ts`
+ * is read only, for `sheets_open` and `sheets_read`. `fakeMutations.ts` covers
+ * the tools that restructure a spreadsheet without changing a cell's contents,
+ * so it carries `batchUpdate`, `sheets.copyTo` and the Drive surface.
  *
- * So this fake keeps a mutable grid. A `values.batchUpdate` really does change
- * it, `values.append` really does add rows, and the gate really does read back
- * what the tool wrote. All ids and names in it are invented.
+ * This one is for the two tools that change values. It keeps a mutable grid: a
+ * `values.batchUpdate` really does change it, `values.append` really does add
+ * rows, and the error gate really does read back what the tool wrote, which is
+ * the only way to test that an append landed where it was supposed to. It also
+ * records every batchUpdate request, so a test can assert that, for instance,
+ * `footerColorStyle` appears in none of them.
+ *
+ * All ids and names in it are invented.
  */
 
 import type { Context } from "../../src/lib/client.js";
