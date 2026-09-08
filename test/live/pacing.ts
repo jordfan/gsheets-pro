@@ -112,24 +112,37 @@ type Limiter = { take(): Promise<void> };
 /**
  * Wrap an API client so every method call is paced and retried.
  *
- * The generated Google clients are plain nested objects of methods, so a
- * recursive proxy reaches all of them without naming any. Methods are invoked
- * against their own parent rather than the proxy, so `this` inside the client
- * is what the library expects.
+ * The generated Google clients are nested objects of methods, so a recursive
+ * proxy reaches all of them without naming any. Methods are invoked against
+ * their own parent rather than the proxy, so `this` inside the client is what
+ * the library expects.
+ *
+ * The proxy's target is an empty object rather than the client itself, and that
+ * is not a stylistic choice. `@googleapis/sheets` defines `spreadsheets` as a
+ * non-configurable, non-writable own property, and a `get` trap on a proxy whose
+ * target has such a property is required by the language to return that exact
+ * value. Returning a wrapper throws:
+ *
+ *     TypeError: 'get' on proxy: property 'spreadsheets' is a read-only and
+ *     non-configurable data property on the proxy target but the proxy did not
+ *     return its actual value
+ *
+ * An empty target has no own properties and so no invariants to violate, and
+ * every read is forwarded to the real client by hand.
  */
 function pace<T extends object>(client: T, limiter: Limiter): T {
   const cache = new Map<PropertyKey, unknown>();
 
-  return new Proxy(client, {
-    get(target, property) {
+  return new Proxy({} as T, {
+    get(_target, property) {
       if (cache.has(property)) return cache.get(property);
 
-      const value = (target as Record<PropertyKey, unknown>)[property];
+      const value = (client as Record<PropertyKey, unknown>)[property];
 
       if (typeof value === "function") {
         const paced = async (...args: unknown[]) => {
           await limiter.take();
-          return withRetry(() => (value as (...a: unknown[]) => Promise<unknown>).apply(target, args), {
+          return withRetry(() => (value as (...a: unknown[]) => Promise<unknown>).apply(client, args), {
             retries: WRAPPER_RETRIES,
           });
         };
@@ -144,6 +157,21 @@ function pace<T extends object>(client: T, limiter: Limiter): T {
       }
 
       return value;
+    },
+
+    has(_target, property) {
+      return property in (client as object);
+    },
+
+    ownKeys() {
+      return Reflect.ownKeys(client as object);
+    },
+
+    getOwnPropertyDescriptor(_target, property) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(client as object, property);
+      // Reported as configurable so enumeration does not hit the same invariant
+      // the get trap does. Nothing here writes to the client.
+      return descriptor ? { ...descriptor, configurable: true } : undefined;
     },
   }) as T;
 }
