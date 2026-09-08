@@ -18,7 +18,14 @@
 
 import { z } from "zod";
 
-import { columnIndexToLetter, gridRangeToA1, parseA1, quoteSheetName, rangeCellCount } from "../lib/a1.js";
+import {
+  columnIndexToLetter,
+  gridRangeToA1,
+  parseA1,
+  quoteSheetName,
+  rangeCellCount,
+  splitSheetRange,
+} from "../lib/a1.js";
 import { colorStyleToText } from "../lib/colors.js";
 import { describeNumberFormat } from "../lib/numfmt.js";
 import { err } from "../lib/errors.js";
@@ -37,6 +44,9 @@ import {
 import { count, guarded, lines, listOf, ok, type ToolResponse } from "../lib/result.js";
 import { withRetry } from "../lib/batch.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
+
+/** More ranges than this in one call and the response stops being readable. */
+const MAX_RANGES = 25;
 
 /** Detail reads (format, note, validation) are capped, per the plan. */
 export const DETAIL_CELL_CAP = 500;
@@ -62,6 +72,12 @@ export const readInputSchema = {
     .string()
     .optional()
     .describe("A1 range within the tab, for example A1:F50 or C:C. Defaults to the whole tab."),
+  ranges: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      "Several ranges in one read, each optionally naming its own tab, for example [\"Roster!A1:C20\", \"Fees!A1:B9\"]. One values.batchGet, one block per range in the response, in the order given. Use this instead of one call per range: reads are capped at sixty a minute.",
+    ),
   as: z
     .enum(["records", "grid"])
     .optional()
@@ -128,6 +144,7 @@ type ReadArgs = {
   spreadsheet_id: string;
   sheet?: string;
   range?: string;
+  ranges?: string[];
   as?: "records" | "grid";
   values?: "formatted" | "raw" | "formulas" | "both";
   header_row?: number;
@@ -157,7 +174,7 @@ export function createReadTool(deps: ToolDeps): ToolDefinition<typeof readInputS
     config: {
       title: "Read a sheet",
       description:
-        "Read values, formulas, or both. Returns records keyed by header with the true sheet row on each, or a raw grid. Filter with where, search every tab with find, and page with limit and offset. Optionally returns cell formatting, notes and validation.",
+        "Read values, formulas, or both. Returns records keyed by header with the true sheet row on each, or a raw grid. Pass ranges to read several blocks, across tabs if you like, in one call. Filter with where, search every tab with find, and page with limit and offset. Optionally returns cell formatting, notes and validation.",
       inputSchema: readInputSchema,
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -166,6 +183,7 @@ export function createReadTool(deps: ToolDeps): ToolDefinition<typeof readInputS
       const ctx = await deps.getContext();
 
       if (args.find) return runFind(ctx, args);
+      if (args.ranges?.length) return runRanges(ctx, args);
       if (!args.sheet) {
         throw err.invalid(
           "sheet is required.",
@@ -451,6 +469,97 @@ async function readDetail(
   if (include.notes) payload["notes"] = notes;
   if (include.validation) payload["validation"] = validation;
   return { payload, warnings: [] };
+}
+
+/**
+ * Several ranges in one call.
+ *
+ * Sheets allows sixty reads a minute, and the commonest way to spend them is a
+ * loop of one read per range. `values.batchGet` takes a list and costs one, so
+ * this is the shape to reach for whenever more than one block is wanted. The
+ * ranges may name different tabs, and the response keeps them in the order
+ * they were given rather than the order the API happened to answer, because
+ * the caller numbered them in their own head.
+ *
+ * Each block is returned as its own grid rather than as records. Records need
+ * a header row, and a caller asking for four scattered ranges usually has at
+ * most one that has headers. Read a single range when records are what is
+ * wanted; this is for gathering.
+ */
+async function runRanges(
+  ctx: Awaited<ReturnType<ToolDeps["getContext"]>>,
+  args: ReadArgs,
+): Promise<ToolResponse> {
+  const wanted = args.ranges ?? [];
+  if (wanted.length > MAX_RANGES) {
+    throw err.invalid(
+      `${wanted.length} ranges is more than one read should carry.`,
+      `Ask for at most ${MAX_RANGES} at a time. Past that the response is too big to be read carefully, and a whole tab is usually the better request.`,
+    );
+  }
+
+  // A bare range takes the sheet argument as its tab, so the common case of
+  // several ranges on one tab does not have to repeat the name.
+  const references = wanted.map((entry) => {
+    const raw = String(entry ?? "").trim();
+    if (!raw) throw err.invalid("One of the ranges is empty.");
+    const split = splitSheetRange(raw);
+    if (split.sheet) return raw;
+    if (!args.sheet) {
+      throw err.invalid(
+        `"${raw}" does not say which tab it is on.`,
+        "Either qualify it, as in Roster!A1:C20, or pass sheet to say which tab the unqualified ranges belong to.",
+      );
+    }
+    if (split.range) parseA1(split.range);
+    return `${quoteSheetName(args.sheet)}!${split.range}`;
+  });
+
+  const mode = args.values ?? "formatted";
+  const response = await withRetry(() =>
+    ctx.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: args.spreadsheet_id,
+      ranges: references,
+      valueRenderOption: RENDER_OPTION[mode === "both" ? "formatted" : mode],
+      dateTimeRenderOption: "FORMATTED_STRING",
+      majorDimension: "ROWS",
+    }),
+  );
+
+  const returned = response.data.valueRanges ?? [];
+  const blocks = references.map((reference, index) => {
+    const rows = (returned[index]?.values ?? []) as CellValue[][];
+    return {
+      requested: wanted[index],
+      range: returned[index]?.range ?? reference,
+      rows: rows.length,
+      columns: Math.max(...rows.map((r) => r.length), 0),
+      values: rows,
+    };
+  });
+
+  const empty = blocks.filter((b) => b.rows === 0).map((b) => b.requested);
+  const structured: Record<string, unknown> = {
+    spreadsheet_id: args.spreadsheet_id,
+    mode,
+    shape: "ranges",
+    blocks,
+    warnings: empty.length
+      ? [
+          `${listOf(empty.map((r) => `"${r}"`))} came back empty. A range with no values is not an error; it usually means the block is further down, or the tab name is right and the range is not.`,
+        ]
+      : [],
+  };
+
+  return ok(
+    lines(
+      `${count(blocks.length, "range")} read in one call, values as ${mode}.`,
+      ...blocks.map((b) => `  ${b.range}: ${count(b.rows, "row")} by ${count(b.columns, "column")}`),
+      empty.length ? `\n${listOf(empty.map((r) => `"${r}"`))} came back empty.` : undefined,
+    ),
+    structured,
+    { maxResultSizeChars: 150_000 },
+  );
 }
 
 async function runFind(
