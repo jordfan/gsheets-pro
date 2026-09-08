@@ -27,7 +27,7 @@ import {
 } from "../lib/a1.js";
 import { runBatchUpdate, withRetry } from "../lib/batch.js";
 import type { Context } from "../lib/client.js";
-import { checkRanges, describeCheck } from "../lib/gate.js";
+import { describeCheck, runErrorGate } from "../lib/errorgate.js";
 import { err, GsheetsError } from "../lib/errors.js";
 import { METADATA_KEYS } from "../lib/contract.js";
 import { hasSheetRecord, presetFor, readMetadata, sheetRecord } from "../lib/metaread.js";
@@ -473,7 +473,7 @@ async function writeBlock(
   const check =
     args.dry_run === true
       ? undefined
-      : await checkRanges(ctx.sheets as never, args.spreadsheet_id, [reference]);
+      : await runErrorGate(ctx.sheets as never, args.spreadsheet_id, [reference]);
 
   const structured: Record<string, unknown> = {
     spreadsheet_id: args.spreadsheet_id,

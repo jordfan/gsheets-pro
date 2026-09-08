@@ -227,8 +227,8 @@ suite("live: the Phase 3 tools", () => {
     expect(isFailure(result)).toBe(false);
     const check = (result.structuredContent as Record<string, never>)["check"] as { status: string };
     // The total is a formula over the two named ranges above it. If the names
-    // did not take, this reads errors_found rather than clean.
-    expect(check.status).toBe("clean");
+    // did not take, this reads errors_found rather than ok.
+    expect(check.status).toBe("ok");
 
     const values = await ctx.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID!,

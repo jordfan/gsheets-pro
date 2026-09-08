@@ -4,11 +4,12 @@
  *
  * The whole tool turns on one restraint. The Sheets API has no color field on
  * any validation rule, so the chip colors a person picked in the UI cannot be
- * read and cannot be written back, and rewriting a rule with a condition
- * identical to the one already there still discards them. A dropdown the plugin
- * did not create is therefore treated as the human's: reported, not touched,
- * and changed only when the caller passes `force` and accepts losing the
- * colors.
+ * read and cannot be written back. Spike 4 settled what that costs: re-applying
+ * `setDataValidation` with a condition byte-identical to the one already there
+ * wiped the colors a person had set by hand, with renders before and after to
+ * prove it, and a success response that said nothing. So a dropdown the plugin
+ * did not create is treated as the human's: reported, not touched, and changed
+ * only when the caller passes `force` and accepts losing the colors.
  *
  * The second restraint comes from spike 3. On a native Table, a DROPDOWN
  * column's rule lives on the Table's column properties and not on its cells, so
@@ -219,7 +220,7 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
         throw new GsheetsError(
           "ui_owned",
           `${listOf(uiOwnedColumns.map((c) => `column ${c}`))} already carries a validation rule this plugin did not create.`,
-          "Its chip colours were set in the Sheets UI, cannot be read through the API, and would be lost on a rewrite. Report it instead, or pass force if losing the colours is acceptable.",
+          "Rewriting it would discard the chip colours somebody set in the Sheets interface. The API cannot read those colours back, so nothing can save them first. That is measured, not a precaution: an identical rewrite wiped them in testing. Leave the rule alone, or pass force if losing the colours is acceptable.",
           { columns: uiOwnedColumns, existing },
         );
       }
@@ -260,7 +261,7 @@ export function createValidationTool(deps: ToolDeps): ToolDefinition<typeof vali
       if (args.dry_run) notes.push("Dry run: nothing was sent.");
       if (uiOwnedColumns.length && args.force) {
         notes.push(
-          `Overwrote a rule set outside this plugin on ${listOf(uiOwnedColumns)}. Any chip colours a person had chosen there are gone and cannot be restored through the API.`,
+          `Overwrote a rule set outside this plugin on ${listOf(uiOwnedColumns)}. Any chip colours a person had chosen there are gone. The API never exposed them, so they cannot be restored; somebody has to set them again by hand.`,
         );
       }
       if (existing.length && !uiOwnedColumns.length) {

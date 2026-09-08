@@ -14,8 +14,10 @@
  *
  * A Table's DROPDOWN column carries its rule on the Table, not on its cells, so
  * this tool is the only way to change one, and it refuses to rewrite a rule the
- * plugin did not create: the chip colours a person set in the UI cannot be read
- * through the API and would be lost.
+ * plugin did not create. Spike 4 measured what a rewrite costs: an identical
+ * condition, re-applied, wiped the chip colours a person had set by hand, and
+ * the API reported success. Those colours are not readable in either direction,
+ * so nothing could have saved them first.
  *
  * `adopt` writes metadata and notes and nothing else. Adopting is what happens
  * to somebody else's sheet, and the polite version of that is to record what
@@ -601,7 +603,7 @@ async function updateTable(
       throw new GsheetsError(
         "ui_owned",
         `${listOf(flagged)} already carries a dropdown this plugin did not create.`,
-        "Its chip colours were set in the Sheets UI, cannot be read through the API, and would be lost on a rewrite. Leave the options alone, or pass force if losing the colours is acceptable.",
+        "Rewriting it would discard the chip colours somebody set in the Sheets interface. The API cannot read those colours back, so nothing can save them first. That is measured, not a precaution: an identical rewrite wiped them in testing. Leave the rule alone, or pass force if losing the colours is acceptable.",
         { columns: flagged },
       );
     }
