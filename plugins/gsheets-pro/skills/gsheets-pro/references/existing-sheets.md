@@ -74,7 +74,8 @@ protects known spreadsheets with no metadata and no setup:
     "1SyNtH3t1c_aBcDeF_ExampleSpreadsheetId_0002": {
       "name": "Lesson Schedule Draft",
       "owner": "human",
-      "positional_rows": true
+      "positional_rows": true,
+      "preset": "park"
     }
   }
 }
@@ -85,8 +86,14 @@ protects known spreadsheets with no metadata and no setup:
 | `owner` | `human`, `shared`, or `agent`. `human` and `shared` both trigger the restyling guard |
 | `writable_columns` | A1 column ranges. A write outside them is refused without `force`, and lint rule L14 reports one that got through |
 | `positional_rows` | Row order is load bearing. Sorting, inserting, deleting, and deduplicating rows are refused outright, not asked about |
-| `colleague_safe_text` | Lint rule L23 runs on this spreadsheet's text |
-| `allowlist` | Words L23 should not flag on this sheet |
+| `colleague_safe_text` | Lint rule L23 runs on this spreadsheet's text, and `sheets_write` refuses text that would not read as a colleague's. Implied by `owner: human` and `owner: shared` |
+| `allowlist` | Phrases L23 and the write check should not flag on this sheet |
+| `preset` | The palette this spreadsheet already uses, so a styling call does not have to be told and does not give it ours |
+| `archetype` | `tracker` or `model`, when the repository knows which this spreadsheet is |
+
+Every field may also be set per tab, under a `sheets` object keyed by tab name,
+and under `defaults` for every spreadsheet in the file. The most specific
+statement wins.
 
 The registry is also what the SessionStart hook reads. In a repository that has
 one, the rules and the list of protected spreadsheets are injected before the

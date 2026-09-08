@@ -49,7 +49,8 @@ src/cli.ts                  stdio | serve --http | auth | doctor | card
 src/server.ts               registers the 14 tools; per-request instances for HTTP
 src/tools/<tool>.ts         one file per tool
 src/lib/                    a1, colors, numfmt, fieldmask, batch, errors, sheetcache,
-                            metadata, registry, contract, theme, render, auth
+                            metadata, registry, contract, theme, gate, safetext,
+                            spreadsheetid, render, auth
 src/lib/lint/<rule>.ts      one pure function per rule
 test/                       vitest, offline    test/live/  gated on GSHEETS_PRO_LIVE_SPREADSHEET
 evals/cases/                claude plugin eval

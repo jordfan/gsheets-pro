@@ -31,10 +31,12 @@ systems and no legible one.
 ## How a preset becomes a spreadsheet
 
 `sheets_style` with a `preset` and no range writes the workbook theme:
-`updateSpreadsheetProperties` carrying the full `SpreadsheetTheme` plus
-`primaryFontFamily`. The Sheets API rejects a partial theme write, so all nine
-pairs go every time; the tool reads the current theme first and fills any slot
-the preset does not name.
+`updateSpreadsheetProperties` carrying the full `SpreadsheetTheme`, whose
+`primaryFontFamily` is the body font. The Sheets API rejects a partial theme
+write, so all nine pairs go every time; the tool reads the current theme first
+and fills any slot the preset does not name. It also records the preset name
+and the archetype in spreadsheet-level developer metadata, so the next session
+reads which preset this is rather than inferring it from the colors.
 
 The nine slots are `TEXT`, `BACKGROUND`, `ACCENT1` through `ACCENT6`, and
 `LINK`.
@@ -75,10 +77,31 @@ the header and the bands and stops. If a totals row is genuinely wanted, it is
 asked for in those words, and the safe shape is a summary block above the Table
 or on another tab. `references/limitations.md` has the evidence.
 
+## Which preset applies
+
+A call rarely has to say. The preset is resolved from the most specific
+statement of intent to the least, and the response says which one answered:
+
+1. The `preset` argument on the call.
+2. The spreadsheet's own `gsheets.manifest` or `gsheets.sheet` metadata, which
+   is what a previous theme write left behind.
+3. The `preset` field on this spreadsheet's entry in `.claude/gsheets-pro.json`.
+   This is how a colleague's sheet keeps the palette it already has instead of
+   acquiring ours.
+4. A personal default in `<data dir>/config.json`, `{"preset": "...",
+   "archetype": "..."}`.
+5. `neutral`.
+
+Archetype follows the same order and then falls back to the preset's own
+`archetype_default`.
+
 ## Writing your own
 
 Copy `presets/neutral.json`, change the values, drop it beside the others. The
-shape is `presets/schema.json`.
+shape is `presets/schema.json`. Presets are read from
+`$GSHEETS_PRO_PRESETS`, then `<data dir>/presets`, then the ones that ship, so
+a file of your own named `park.json` in the data directory shadows the
+installed `park` without editing the plugin.
 
 The loader validates three things and refuses the preset rather than shipping a
 sheet that fails them:
