@@ -6,7 +6,12 @@
 import { describe, expect, test } from "vitest";
 
 import { errorOf, isFailure } from "../src/lib/result.js";
-import { buildDriveQuery, createFindTool, escapeDriveQuery } from "../src/tools/find.js";
+import {
+  buildDriveQuery,
+  buildFolderQuery,
+  createFindTool,
+  escapeDriveQuery,
+} from "../src/tools/find.js";
 import { makeMutationContext, type FakeMutationOptions } from "./helpers/fakeMutations.js";
 
 const SPREADSHEETS = "https://www.googleapis.com/auth/spreadsheets";
@@ -16,6 +21,11 @@ const DRIVE_READONLY = "https://www.googleapis.com/auth/drive.readonly";
 const FILES = [
   { id: "1RoStErSpReAdShEeTiDaBcDeFgHiJkLmNoPq", name: "Fall Enrichment Roster" },
   { id: "1BuDgEtSpReAdShEeTiDaBcDeFgHiJkLmNoPqR", name: "Fall Enrichment Budget" },
+];
+
+const FOLDERS = [
+  { id: "0AEnRiChMeNtFoLdErIdAbCdEf", name: "Enrichment" },
+  { id: "0AMuSiClEsSoNsFoLdErIdAbCd", name: "Music Lessons" },
 ];
 
 function tool(options: FakeMutationOptions = {}) {
@@ -39,6 +49,15 @@ describe("the Drive query", () => {
   test("escapes a quote in a title so the query is not broken by an apostrophe", () => {
     expect(escapeDriveQuery("Jordan's sheet")).toBe("Jordan\\'s sheet");
     expect(buildDriveQuery("Jordan's sheet")).toContain("name contains 'Jordan\\'s sheet'");
+  });
+
+  test("the folder query asks for folders and treats folder as the parent", () => {
+    expect(buildFolderQuery()).toBe(
+      "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+    );
+    const q = buildFolderQuery("Music", "0AParentIdAbCdEf");
+    expect(q).toContain("name contains 'Music'");
+    expect(q).toContain("'0AParentIdAbCdEf' in parents");
   });
 });
 
@@ -95,6 +114,110 @@ describe("list", () => {
     const response = await t.find.handler({ action: "list" });
     expect(errorOf(response)?.code).toBe("permission_denied");
     expect(errorOf(response)?.hint).toContain("Restricted scope");
+  });
+});
+
+describe("folders", () => {
+  test("returns folders with their ids, and says what a folder id is for", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFolders: FOLDERS });
+    const response = await t.find.handler({ action: "folders" });
+    expect(isFailure(response)).toBe(false);
+    const structured = response.structuredContent as {
+      folders: Array<{ folder_id: string; name: string; url: string }>;
+    };
+    expect(structured.folders.map((f) => f.name)).toEqual(["Enrichment", "Music Lessons"]);
+    expect(structured.folders[0].folder_id).toBe("0AEnRiChMeNtFoLdErIdAbCdEf");
+    expect(structured.folders[0].url).toContain("drive.google.com/drive/folders/");
+    expect(response.content[0].text).toContain("goes straight into folder on list");
+  });
+
+  test("asks Drive for folders, not spreadsheets", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFolders: FOLDERS });
+    await t.find.handler({ action: "folders", query: "Music" });
+    const params = t.calls.driveList[0] as { q: string; orderBy: string };
+    expect(params.q).toContain("apps.folder");
+    expect(params.q).not.toContain("apps.spreadsheet");
+    expect(params.q).toContain("name contains 'Music'");
+    expect(params.orderBy).toBe("name");
+  });
+
+  test("a parent folder is passed through as an in parents clause", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFolders: FOLDERS });
+    const response = await t.find.handler({ action: "folders", folder: "0AParentIdAbCdEf" });
+    expect((t.calls.driveList[0] as { q: string }).q).toContain("'0AParentIdAbCdEf' in parents");
+    expect(response.content[0].text).toContain("inside 0AParentIdAbCdEf");
+  });
+
+  test("an empty result without the scope is a teaching error, since folders are never app-created", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_FILE], driveFolders: [] });
+    const response = await t.find.handler({ action: "folders" });
+    expect(isFailure(response)).toBe(true);
+    const error = errorOf(response);
+    expect(error?.code).toBe("permission_denied");
+    expect(error?.message).toContain("drive.readonly");
+    expect(error?.hint).toContain("this app never creates a folder");
+  });
+
+  test("an empty result with the scope is simply empty", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFolders: [] });
+    const response = await t.find.handler({ action: "folders" });
+    expect(isFailure(response)).toBe(false);
+    expect(response.content[0].text).toContain("0 folders");
+  });
+
+  test("a token with no Drive scope at all is refused before the call", async () => {
+    const t = tool({ scopes: [SPREADSHEETS] });
+    const response = await t.find.handler({ action: "folders" });
+    expect(errorOf(response)?.code).toBe("permission_denied");
+    expect(t.calls.driveList).toHaveLength(0);
+  });
+
+  test("Drive's own scope refusal becomes the same teaching error", async () => {
+    const t = tool({
+      scopes: [],
+      driveError: { status: 403, message: "Request had insufficient authentication scopes." },
+    });
+    const response = await t.find.handler({ action: "folders" });
+    expect(errorOf(response)?.code).toBe("permission_denied");
+    expect(errorOf(response)?.hint).toContain("Restricted scope");
+  });
+});
+
+describe("paging", () => {
+  test("folders carries the next page token back and says how to use it", async () => {
+    const t = tool({
+      scopes: [SPREADSHEETS, DRIVE_READONLY],
+      driveFolders: FOLDERS,
+      driveNextPageToken: "token-2",
+    });
+    const response = await t.find.handler({ action: "folders" });
+    expect((response.structuredContent as { next_page_token: string }).next_page_token).toBe("token-2");
+    expect(response.content[0].text).toContain("page_token");
+  });
+
+  test("a page token is passed through to Drive", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFolders: FOLDERS });
+    await t.find.handler({ action: "folders", page_token: "token-2" });
+    expect(t.calls.driveList[0]).toMatchObject({ pageToken: "token-2" });
+  });
+
+  test("list pages the same way", async () => {
+    const t = tool({
+      scopes: [SPREADSHEETS, DRIVE_READONLY],
+      driveFiles: FILES,
+      driveNextPageToken: "token-2",
+    });
+    const first = await t.find.handler({ action: "list" });
+    expect((first.structuredContent as { next_page_token: string }).next_page_token).toBe("token-2");
+    await t.find.handler({ action: "list", page_token: "token-2" });
+    expect(t.calls.driveList[1]).toMatchObject({ pageToken: "token-2" });
+  });
+
+  test("no page token means none is sent and none is reported", async () => {
+    const t = tool({ scopes: [SPREADSHEETS, DRIVE_READONLY], driveFiles: FILES });
+    const response = await t.find.handler({ action: "list" });
+    expect((response.structuredContent as { next_page_token: null }).next_page_token).toBeNull();
+    expect(t.calls.driveList[0]).not.toHaveProperty("pageToken");
   });
 });
 

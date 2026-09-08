@@ -57,6 +57,10 @@ export interface FakeMutationOptions {
   scopes?: string[];
   /** Files `drive.files.list` should return. */
   driveFiles?: Array<{ id: string; name: string; modifiedTime?: string; webViewLink?: string }>;
+  /** Folders `drive.files.list` should return when the query asks for them. */
+  driveFolders?: Array<{ id: string; name: string; modifiedTime?: string; webViewLink?: string }>;
+  /** Set to make every list look like it has another page behind it. */
+  driveNextPageToken?: string;
   /** Make a Drive call fail the way Google does when a scope is missing. */
   driveError?: { status: number; message: string };
   /** Replies the fake batchUpdate hands back, in request order. */
@@ -214,17 +218,28 @@ export function makeMutationContext(
 
   const drive = {
     files: {
-      async list(params: unknown) {
+      async list(params: { q?: string }) {
         calls.driveList.push(params);
         driveFail();
+        // Drive answers one endpoint for both, so the fake tells them apart the
+        // same way the real one does: by the mimeType clause in the query.
+        const wantsFolders = String(params?.q ?? "").includes("apps.folder");
+        const source = wantsFolders ? (options.driveFolders ?? []) : (options.driveFiles ?? []);
         return {
           data: {
-            files: (options.driveFiles ?? []).map((f) => ({
+            ...(options.driveNextPageToken ? { nextPageToken: options.driveNextPageToken } : {}),
+            files: source.map((f) => ({
               id: f.id,
               name: f.name,
               modifiedTime: f.modifiedTime ?? "2026-09-01T12:00:00Z",
-              webViewLink: f.webViewLink ?? `https://docs.google.com/spreadsheets/d/${f.id}/edit`,
-              owners: [{ displayName: "Test Owner", emailAddress: "owner@example.org" }],
+              webViewLink:
+                f.webViewLink ??
+                (wantsFolders
+                  ? `https://drive.google.com/drive/folders/${f.id}`
+                  : `https://docs.google.com/spreadsheets/d/${f.id}/edit`),
+              ...(wantsFolders
+                ? { parents: ["0AParentFolderIdAbCdEf"] }
+                : { owners: [{ displayName: "Test Owner", emailAddress: "owner@example.org" }] }),
             })),
           },
         };

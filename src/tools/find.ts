@@ -2,9 +2,9 @@
  * `sheets_find`: the Drive side of working with spreadsheets.
  *
  * Everything else in this plugin takes a spreadsheet id and works inside it.
- * This is the tool for the three things that happen outside one: finding a
- * spreadsheet when all you have is its name, giving a colleague access, and
- * making a copy.
+ * This is the tool for the four things that happen outside one: finding a
+ * spreadsheet when all you have is its name, browsing the folders it might be
+ * in, giving a colleague access, and making a copy.
  *
  * Drive scopes are the whole difficulty here and the reason this is its own
  * tool rather than an action bolted onto `sheets_open`. The default install
@@ -24,13 +24,14 @@ import { GsheetsError, apiErrorMessage, apiErrorStatus, err } from "../lib/error
 import { count, guarded, lines, ok, type ToolResponse } from "../lib/result.js";
 import type { ToolDefinition, ToolDeps } from "./types.js";
 
-export const FIND_ACTIONS = ["list", "share", "copy"] as const;
+export const FIND_ACTIONS = ["list", "folders", "share", "copy"] as const;
 export type FindAction = (typeof FIND_ACTIONS)[number];
 
 /** Full Drive. Only ever named in a hint, never requested by default. */
 const SCOPE_DRIVE = "https://www.googleapis.com/auth/drive";
 
 const SPREADSHEET_MIME = "application/vnd.google-apps.spreadsheet";
+const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -41,6 +42,11 @@ export const SCOPE_NEEDS: Record<FindAction, { scope: string; why: string; fix: 
     scope: SCOPE_DRIVE_READONLY,
     why: "Searching Drive for a spreadsheet by title reads file names across the account, which drive.file cannot do: it sees only files this app created or the user picked in a Google file picker.",
     fix: "Run `gsheets-pro auth --drive-readonly` to add it. It is a Restricted scope, so add it only if you want the search. Everything else in this plugin works without it, and you can always pass a spreadsheet id straight to sheets_open.",
+  },
+  folders: {
+    scope: SCOPE_DRIVE_READONLY,
+    why: "Listing folders reads the shape of the account's Drive. drive.file cannot do it at all: it sees only files this app created or the user picked, and this app never creates a folder, so on that scope the answer is always empty.",
+    fix: "Run `gsheets-pro auth --drive-readonly` to add it. It is a Restricted scope, so add it only if you want to browse Drive. If you already know the folder id, from its URL after /folders/, every other action here takes it without this scope.",
   },
   share: {
     scope: SCOPE_DRIVE_FILE,
@@ -58,17 +64,19 @@ export const findInputSchema = {
   action: z
     .enum(FIND_ACTIONS)
     .describe(
-      "list finds spreadsheets by title or folder. share gives a person access. copy duplicates a whole spreadsheet.",
+      "list finds spreadsheets by title or folder. folders lists the folders themselves, so you can find the id to scope a list to. share gives a person access. copy duplicates a whole spreadsheet.",
     ),
   query: z
     .string()
     .optional()
-    .describe("list: return only spreadsheets whose title contains this. Omit to list the most recent."),
+    .describe(
+      "list: return only spreadsheets whose title contains this. folders: only folders whose name contains this. Omit to list the most recent.",
+    ),
   folder: z
     .string()
     .optional()
     .describe(
-      "list: the Drive folder id to look in. copy: the folder id to put the copy in. Omit for the whole Drive, or for the same folder as the original.",
+      "list: the Drive folder id to look in. folders: the parent folder id, so you get its subfolders. copy: the folder id to put the copy in. Omit for the whole Drive, or for the same folder as the original.",
     ),
   limit: z
     .number()
@@ -76,7 +84,13 @@ export const findInputSchema = {
     .min(1)
     .max(MAX_LIMIT)
     .optional()
-    .describe(`list: how many to return. Default ${DEFAULT_LIMIT}.`),
+    .describe(`list and folders: how many to return. Default ${DEFAULT_LIMIT}.`),
+  page_token: z
+    .string()
+    .optional()
+    .describe(
+      "list and folders: the next_page_token from a previous call, to read the next page. Everything else about the call must stay the same.",
+    ),
   spreadsheet_id: z
     .string()
     .optional()
@@ -107,6 +121,7 @@ type FindArgs = {
   query?: string;
   folder?: string;
   limit?: number;
+  page_token?: string;
   spreadsheet_id?: string;
   email?: string;
   role?: "reader" | "commenter" | "writer";
@@ -117,11 +132,14 @@ type FindArgs = {
 };
 
 const DESCRIPTION = [
-  "Find, share and copy whole spreadsheets. This is the Drive side; everything inside a spreadsheet is the other tools.",
+  "Find, browse, share and copy whole spreadsheets. This is the Drive side; everything inside a spreadsheet is the other tools.",
   "",
-  "list (query, folder, limit): find spreadsheets by title or by folder. Needs the drive.readonly scope to see a person's own files; without it it sees only files this app created or the user picked.",
+  "list (query, folder, limit, page_token): find spreadsheets by title or by folder. Needs the drive.readonly scope to see a person's own files; without it it sees only files this app created or the user picked.",
+  "folders (query, folder, limit, page_token): list folders, so you can find the id to scope a list or a copy to. Pass folder to get one folder's subfolders. Needs drive.readonly.",
   "share (spreadsheet_id, email, role, confirm): give a person access. Sends no notification email unless notify is set.",
   "copy (spreadsheet_id, title, folder): duplicate a whole spreadsheet. The copy keeps formatting, validation and the plugin's own column contract.",
+  "",
+  "list and folders page: when a response carries next_page_token, call again with page_token set to it and everything else unchanged.",
 ].join("\n");
 
 export function createFindTool(deps: ToolDeps): ToolDefinition<typeof findInputSchema> {
@@ -142,6 +160,7 @@ export function createFindTool(deps: ToolDeps): ToolDefinition<typeof findInputS
 
       try {
         if (args.action === "list") return await listSpreadsheets(ctx, args, scopes);
+        if (args.action === "folders") return await listFolders(ctx, args, scopes);
         if (args.action === "share") return await shareSpreadsheet(ctx, args);
         return await copySpreadsheet(ctx, args);
       } catch (error) {
@@ -211,11 +230,25 @@ export function escapeDriveQuery(value: string): string {
 
 /** Build the Drive `q` for a spreadsheet search. Pure, so the cases are testable. */
 export function buildDriveQuery(query?: string, folder?: string): string {
-  const clauses = [`mimeType = '${SPREADSHEET_MIME}'`, "trashed = false"];
-  const title = query?.trim();
-  if (title) clauses.push(`name contains '${escapeDriveQuery(title)}'`);
-  const parent = folder?.trim();
-  if (parent) clauses.push(`'${escapeDriveQuery(parent)}' in parents`);
+  return buildMimeQuery(SPREADSHEET_MIME, query, folder);
+}
+
+/**
+ * The same query for folders. `folder` means the parent here rather than the
+ * place to look, which is the only difference worth stating: passing a folder
+ * to `folders` gets its children, passing one to `list` gets the spreadsheets
+ * inside it.
+ */
+export function buildFolderQuery(query?: string, parent?: string): string {
+  return buildMimeQuery(FOLDER_MIME, query, parent);
+}
+
+function buildMimeQuery(mimeType: string, query?: string, parent?: string): string {
+  const clauses = [`mimeType = '${mimeType}'`, "trashed = false"];
+  const name = query?.trim();
+  if (name) clauses.push(`name contains '${escapeDriveQuery(name)}'`);
+  const folder = parent?.trim();
+  if (folder) clauses.push(`'${escapeDriveQuery(folder)}' in parents`);
   return clauses.join(" and ");
 }
 
@@ -232,8 +265,10 @@ async function listSpreadsheets(
       q,
       pageSize: limit,
       orderBy: "modifiedTime desc",
-      fields: "files(id,name,modifiedTime,webViewLink,owners(displayName,emailAddress)),incompleteSearch",
+      fields:
+        "nextPageToken,incompleteSearch,files(id,name,modifiedTime,webViewLink,owners(displayName,emailAddress))",
       supportsAllDrives: true,
+      ...(args.page_token?.trim() ? { pageToken: args.page_token.trim() } : {}),
     }),
   );
 
@@ -268,6 +303,8 @@ async function listSpreadsheets(
     warnings.push("Drive reported the search as incomplete, usually because a shared drive did not answer in time.");
   }
 
+  const nextPageToken = response.data.nextPageToken ?? null;
+
   const structured: Record<string, unknown> = {
     action: "list",
     query: args.query ?? null,
@@ -275,6 +312,7 @@ async function listSpreadsheets(
     drive_query: q,
     spreadsheets: files,
     scope_limited: restricted,
+    next_page_token: nextPageToken,
     warnings,
   };
 
@@ -286,6 +324,97 @@ async function listSpreadsheets(
     lines(
       head,
       ...files.map((f) => `  ${f.title} (${f.spreadsheet_id})${f.owner ? `, owned by ${f.owner}` : ""}`),
+      nextPageToken ? `\nMore to come. Call again with page_token set to next_page_token.` : undefined,
+      warnings.length ? `\nWorth knowing:\n${warnings.map((w) => `- ${w}`).join("\n")}` : undefined,
+    ),
+    structured,
+    { maxResultSizeChars: 60_000 },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// folders
+// ---------------------------------------------------------------------------
+
+/**
+ * Folders, so a person who knows where a spreadsheet lives but not what it is
+ * called can get there. This replaces the old `list_folders` from the Python
+ * server, which is why it exists as its own action rather than as a flag on
+ * `list`: a folder is not a spreadsheet, its result carries a folder id rather
+ * than a spreadsheet id, and returning the two shapes from one action would
+ * mean the caller had to work out which they got.
+ */
+async function listFolders(
+  ctx: Awaited<ReturnType<ToolDeps["getContext"]>>,
+  args: FindArgs,
+  scopes: string[],
+): Promise<ToolResponse> {
+  const limit = args.limit ?? DEFAULT_LIMIT;
+  const q = buildFolderQuery(args.query, args.folder);
+
+  const response = await withRetry(() =>
+    ctx.drive.files.list({
+      q,
+      pageSize: limit,
+      orderBy: "name",
+      fields: "nextPageToken,incompleteSearch,files(id,name,modifiedTime,webViewLink,parents)",
+      supportsAllDrives: true,
+      ...(args.page_token?.trim() ? { pageToken: args.page_token.trim() } : {}),
+    }),
+  );
+
+  const folders = (response.data.files ?? []).map((file) => ({
+    folder_id: file.id ?? "",
+    name: file.name ?? "",
+    modified: file.modifiedTime ?? null,
+    url: file.webViewLink ?? (file.id ? `https://drive.google.com/drive/folders/${file.id}` : null),
+    parent: file.parents?.[0] ?? null,
+  }));
+
+  const restricted = knowsScopes(scopes) && !hasScope(scopes, SCOPE_DRIVE_READONLY);
+
+  // drive.file never sees a folder, because this app does not create folders.
+  // An empty answer there means the scope, not an empty Drive, and reporting it
+  // as an empty Drive would be simply false.
+  if (folders.length === 0 && restricted) {
+    throw scopeError(
+      "folders",
+      SCOPE_DRIVE_READONLY,
+      "No folders came back, and on this token none ever would.",
+    );
+  }
+
+  const nextPageToken = response.data.nextPageToken ?? null;
+  const warnings: string[] = [];
+  if (response.data.incompleteSearch) {
+    warnings.push("Drive reported the search as incomplete, usually because a shared drive did not answer in time.");
+  }
+
+  const structured: Record<string, unknown> = {
+    action: "folders",
+    query: args.query ?? null,
+    parent: args.folder ?? null,
+    drive_query: q,
+    folders,
+    scope_limited: restricted,
+    next_page_token: nextPageToken,
+    warnings,
+  };
+
+  const head = args.folder
+    ? `${count(folders.length, "folder")} inside ${args.folder}.`
+    : args.query
+      ? `${count(folders.length, "folder")} with "${args.query}" in the name.`
+      : `${count(folders.length, "folder")}, by name.`;
+
+  return ok(
+    lines(
+      head,
+      ...folders.map((f) => `  ${f.name} (${f.folder_id})`),
+      nextPageToken ? `\nMore to come. Call again with page_token set to next_page_token.` : undefined,
+      folders.length
+        ? "\nA folder_id goes straight into folder on list, to see the spreadsheets in it, or on copy, to put a copy there."
+        : undefined,
       warnings.length ? `\nWorth knowing:\n${warnings.map((w) => `- ${w}`).join("\n")}` : undefined,
     ),
     structured,
