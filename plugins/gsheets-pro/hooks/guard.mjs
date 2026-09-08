@@ -57,7 +57,10 @@ const ROW_ORDER_ACTIONS = new Set([
   "dedupe",
 ]);
 
-const RESTYLE_KEYS = ["preset", "theme", "banding", "clear"];
+// The sheets_style arguments that change how a spreadsheet looks for everyone
+// rather than adding to one range. There is no separate `theme` argument: a
+// preset with no range is what writes the workbook theme.
+const RESTYLE_KEYS = ["preset", "banding", "clear"];
 
 /**
  * Decide whether this call needs a human in the loop.
