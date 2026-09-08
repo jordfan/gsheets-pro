@@ -46,3 +46,57 @@ jobs:
 
       - name: the CLI runs from the build
         run: node dist/cli.js --help
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: gsheets-pro:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: run and wait for /health
+        run: |
+          docker run -d --name gsheets-pro-ci -p 8080:8080 \
+            -e GSHEETS_PRO_TOKEN=ci-smoke-test-token \
+            gsheets-pro:ci
+          for i in $(seq 1 20); do
+            if curl -sf http://127.0.0.1:8080/health >/dev/null; then
+              echo "healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server never answered /health"
+          docker logs gsheets-pro-ci
+          exit 1
+
+      - name: container logs
+        if: always()
+        run: docker logs gsheets-pro-ci || true
+
+      - name: clean up
+        if: always()
+        run: docker rm -f gsheets-pro-ci || true
+
+  gitleaks:
+    name: gitleaks scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
