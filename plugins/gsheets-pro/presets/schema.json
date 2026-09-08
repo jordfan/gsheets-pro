@@ -159,7 +159,7 @@
         },
         "muted_fill": {
           "$ref": "#/$defs/colorToken",
-          "description": "The fill for a status that carries no state, and the only neutral fill there is. `muted` is a TEXT color and must never be used as a fill: painting a status row in it puts dark text on a dark ground, which is how three rows of a golden render came out unreadable."
+          "description": "The pale neutral fill, and the only one there is. This is the key status fill rules reach for when a status carries no particular state. Named muted_fill rather than status_default because it is not only for statuses: it is the background counterpart to `muted` wherever a neutral ground is wanted. `muted` itself is a TEXT color and must never be used as a fill, which is what this role exists to prevent: painting a status row in it puts dark text on a dark ground, and that is how three rows of a rendered sheet came back unreadable."
         },
         "muted": {
           "$ref": "#/$defs/colorToken"

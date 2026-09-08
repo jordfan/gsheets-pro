@@ -132,9 +132,18 @@ const presetSchema = z
          */
         muted: colorToken,
         /**
-         * The fill for a status that carries no state, and the only neutral
-         * fill there is. Separate from `muted` because that one is text, and
-         * painting a row in a text color puts dark on dark.
+         * The pale neutral fill, and the only one there is.
+         *
+         * **This is the key `status_fill_rules` should reach for** when it
+         * wants a background for a status carrying no particular state. It is
+         * named `muted_fill` rather than `status_default` because it is not
+         * only for statuses: it is the background counterpart to `muted`
+         * wherever a neutral ground is wanted. All three shipped presets
+         * define it and the loader requires it, so it is safe to depend on.
+         *
+         * It exists because `muted` is a TEXT color and was being used as a
+         * fill. On park that is #6B7770, so a status row painted in it came
+         * back from a render as dark text on a dark ground.
          */
         muted_fill: colorToken,
       })
