@@ -54,7 +54,9 @@ src/lib/                    a1, colors, numfmt, fieldmask, batch, errors, sheetc
 src/lib/lint/<rule>.ts      one pure function per rule
 test/                       vitest, offline    test/live/  gated on GSHEETS_PRO_LIVE_SPREADSHEET
 evals/cases/                claude plugin eval
-docs/                       PLAN.md, spikes.md, LIMITATIONS.md, hosting.md, SECURITY.md
+docs/                       PLAN.md (gitignored), spikes.md, cloud.md, hosting.md, LIMITATIONS.md
+scripts/                    vendor.mjs, card.mjs, release.mjs
+LICENSE, NOTICE, SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CHANGELOG.md   repo root, publication gate
 ```
 
 The 14 tools and what each wraps are tabulated in `docs/PLAN.md` § Tool
